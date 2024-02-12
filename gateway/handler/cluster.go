@@ -1,10 +1,12 @@
 package handler
 
 import (
+	"context"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/koor-tech/genesis/gateway/request"
-	clusterService "github.com/koor-tech/genesis/internal/cluster"
-	"github.com/koor-tech/genesis/pkg/models"
+	"github.com/koor-tech/genesis/internal/cluster"
+	"github.com/koor-tech/genesis/pkg/database"
 	"net/http"
 )
 
@@ -19,11 +21,27 @@ func CreateCluster(c *gin.Context) {
 		return
 	}
 
-	clusterSvc := clusterService.NewKoorCluster(createClusterRequest.Provider, models.NewClient(createClusterRequest.ClientName))
-	err := clusterSvc.BuildCluster(c)
+	clusterSvc := cluster.NewKoorCluster(database.NewDB())
+	err := clusterSvc.NewCluster(context.Background(), createClusterRequest)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": ErrorBadRequest})
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err})
 		return
 	}
-	c.JSON(201, gin.H{"cluster": clusterSvc.Cluster()})
+	clusterState, err := clusterSvc.BuildCluster(c)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err})
+		return
+	}
+	c.JSON(201, gin.H{"cluster": clusterState})
+}
+
+func GetCluster(c *gin.Context) {
+	clusterID := uuid.MustParse(c.Param("id"))
+	clusterSvc := cluster.NewKoorCluster(database.NewDB())
+	koorCluster, err := clusterSvc.Cluster(context.Background(), clusterID)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": err})
+		return
+	}
+	c.JSON(201, gin.H{"cluster": koorCluster})
 }

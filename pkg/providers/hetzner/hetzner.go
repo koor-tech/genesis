@@ -5,21 +5,32 @@ import (
 	"fmt"
 	"github.com/hetznercloud/hcloud-go/v2/hcloud"
 	"github.com/koor-tech/genesis/pkg/utils"
+	"github.com/spf13/viper"
 	"log"
 	"strings"
 )
 
 type Provider struct {
-	Client *hcloud.Client
+	Client     *hcloud.Client
+	clientName string
 }
 
-func NewProvider(token string) *Provider {
+func NewProvider(customer string) *Provider {
 	return &Provider{
-		Client: hcloud.NewClient(hcloud.WithToken(token)),
+		Client:     hcloud.NewClient(hcloud.WithToken(viper.GetString("hetzner.token"))),
+		clientName: customer,
 	}
 }
 
-func (p *Provider) buildLabels(labels map[string]string) string {
+func (p *Provider) buildLabels() string {
+	clusterNameLabel := fmt.Sprintf("koor-client-%s", p.clientName)
+	clusterWorkerLabelKey := fmt.Sprintf("koor-client-%s-workers", p.clientName)
+
+	labels := map[string]string{
+		"kubeone_cluster_name": clusterNameLabel,
+		clusterWorkerLabelKey:  "pool1",
+	}
+
 	var hetznerLabels []string
 	for labelKey, labelValue := range labels {
 		hetznerLabels = append(hetznerLabels, fmt.Sprintf("%s=%s", labelKey, labelValue))
@@ -27,9 +38,8 @@ func (p *Provider) buildLabels(labels map[string]string) string {
 	return strings.Join(hetznerLabels, ",")
 }
 
-func (p *Provider) GetServerByLabels(ctx context.Context, labels map[string]string) ([]*hcloud.Server, error) {
-	hetznerLabels := p.buildLabels(labels)
-
+func (p *Provider) GetServerByLabels(ctx context.Context) ([]*hcloud.Server, error) {
+	hetznerLabels := p.buildLabels()
 	filterOpts := hcloud.ServerListOpts{
 		ListOpts: hcloud.ListOpts{
 			LabelSelector: hetznerLabels,
@@ -45,6 +55,20 @@ func (p *Provider) GetServerByLabels(ctx context.Context, labels map[string]stri
 	return servers, nil
 }
 
+func (p *Provider) AttacheVolumesToServers(ctx context.Context, servers []*hcloud.Server) error {
+	volLabels := map[string]string{"koor-client": p.clientName, "pool": "pool1"}
+	for _, server := range servers {
+		serverName := server.Name
+		name := fmt.Sprintf("data-%s-pool1-%s", p.clientName, serverName[len(serverName)-5:])
+		err := p.AttachVolumeToServer(ctx, server, volLabels, 40, name, false)
+		if err != nil {
+			log.Print("unable to create volume:", "err", err)
+			return err
+		}
+	}
+	return nil
+}
+
 func (p *Provider) AttachVolumeToServer(ctx context.Context, server *hcloud.Server, labels map[string]string, sizeInGB int, volumeName string, autoMount bool) error {
 	opts := hcloud.VolumeCreateOpts{
 		Name:      volumeName,
@@ -53,7 +77,6 @@ func (p *Provider) AttachVolumeToServer(ctx context.Context, server *hcloud.Serv
 		Labels:    labels,
 		Automount: utils.ToPointer(autoMount),
 	}
-
 	_, _, err := p.Client.Volume.Create(ctx, opts)
 	if err != nil {
 		log.Printf("unable to attach volumes due to: %q\n", err)

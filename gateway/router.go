@@ -12,6 +12,7 @@ func SetupRouter() *gin.Engine {
 	v1 := r.Group("/api/v1")
 	{
 		v1.POST("/cluster", handler.CreateCluster)
+		v1.GET("/clusters/:id", handler.GetCluster)
 	}
 	return r
 }

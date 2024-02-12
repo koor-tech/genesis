@@ -4,11 +4,19 @@ import (
 	"context"
 	"fmt"
 	"github.com/google/uuid"
+	"github.com/koor-tech/genesis/gateway/request"
 	"github.com/koor-tech/genesis/internal/k8s"
+	"github.com/koor-tech/genesis/pkg/database"
 	"github.com/koor-tech/genesis/pkg/files"
 	"github.com/koor-tech/genesis/pkg/kubeone"
 	"github.com/koor-tech/genesis/pkg/models"
+	"github.com/koor-tech/genesis/pkg/observer"
 	"github.com/koor-tech/genesis/pkg/providers/hetzner"
+	"github.com/koor-tech/genesis/pkg/rabbitmq"
+	"github.com/koor-tech/genesis/pkg/repositories/postgres/clients"
+	clusters "github.com/koor-tech/genesis/pkg/repositories/postgres/cluster"
+	"github.com/koor-tech/genesis/pkg/repositories/postgres/providers"
+	"github.com/koor-tech/genesis/pkg/repositories/postgres/state"
 	"github.com/koor-tech/genesis/pkg/ssh"
 	"log/slog"
 	"os"
@@ -21,132 +29,300 @@ import (
 const koorClientsDir = "/home/javier/koor"
 
 type KoorCluster struct {
-	cluster      *models.Cluster
-	templatesSrc string
-	templatesDst string
-	logger       *slog.Logger
+	cluster                *models.Cluster
+	subject                *observer.Subject
+	templatesSrc           string
+	templatesDst           string
+	logger                 *slog.Logger
+	queue                  *rabbitmq.Client
+	clusterStateRepository state.ClusterStateInterface
+	clientsRepository      clients.ClientsInterface
+	clustersRepository     clusters.ClustersInterface
+	providerRepository     providers.ProvidersInterface
 }
 
-func NewKoorCluster(provider string, client *models.Client) *KoorCluster {
-
-	return &KoorCluster{
-		cluster: &models.Cluster{
-			ID:       uuid.New(),
-			Provider: provider,
-			Client:   client,
-		},
-		templatesSrc: koorClientsDir + "/templates/" + provider,
-		templatesDst: koorClientsDir + "/clients/" + client.ID.String(),
-		logger:       slog.New(slog.NewTextHandler(os.Stdout, nil)),
+func NewKoorCluster(db *database.DB) *KoorCluster {
+	queue := rabbitmq.NewClient()
+	queue.QueueDeclare()
+	kc := KoorCluster{
+		subject:                observer.NewSubject(),
+		logger:                 slog.New(slog.NewTextHandler(os.Stdout, nil)),
+		queue:                  queue,
+		templatesSrc:           koorClientsDir + "/templates/",
+		templatesDst:           koorClientsDir + "/clients/",
+		clusterStateRepository: state.NewClusterStateRepository(db),
+		clientsRepository:      clients.NewClientsRepository(db),
+		providerRepository:     providers.NewProviderRepository(db),
+		clustersRepository:     clusters.NewClusterRepository(db),
 	}
+
+	kc.Listen(context.Background())
+	return &kc
 }
 
-func (k *KoorCluster) Cluster() models.Cluster {
-	return *k.cluster
-}
-
-func (k *KoorCluster) BuildCluster(ctx context.Context) error {
-	k.logger.Info("BuildCluster", "Provider", k.cluster.Provider, "ID", k.cluster.ID, "Client", k.cluster.Client.ID)
-
-	fmt.Println("============ Starting  ==============")
-
-	fmt.Println("============ Setup client environment  ==============")
-	// copy files to keep a copy fo the resources required by kubeone
-	err := files.CopyDir(k.templatesSrc, k.templatesDst)
+func (k *KoorCluster) NewCluster(ctx context.Context, params request.CreateClusterRequest) error {
+	createClient := models.Client{
+		ID:   uuid.New(),
+		Name: params.ClientName,
+	}
+	client, err := k.clientsRepository.Save(ctx, createClient)
 	if err != nil {
-		k.logger.Error("unable to copy template files", "err", err)
+		k.logger.Error("unable to save client", "err", err)
 		return err
 	}
 
-	fmt.Println("============ Generating SSH Keys  ==============")
+	provider, err := k.providerRepository.QueryByID(ctx, uuid.MustParse("80be226b-8355-4dea-b41a-6e17ea37559a"))
+	if err != nil {
+		k.logger.Error("unable to get provider", "err", err)
+		return err
+	}
+
+	createCluster := models.Cluster{
+		ID:       uuid.New(),
+		Client:   *client,
+		Provider: *provider,
+	}
+
+	cluster, err := k.clustersRepository.Save(ctx, createCluster)
+	if err != nil {
+		k.logger.Error("unable to save the cluster", "err", err)
+		return err
+	}
+
+	k.templatesSrc = k.templatesSrc + cluster.Provider.Name
+	k.templatesDst = k.templatesDst + cluster.Client.ID.String()
+	k.cluster = cluster
+	return nil
+}
+
+func (k *KoorCluster) Cluster(ctx context.Context, ID uuid.UUID) (*models.Cluster, error) {
+	c, err := k.clustersRepository.QueryByID(ctx, ID)
+	fmt.Println("================================")
+	fmt.Printf("ID: %+v\n", ID)
+	if err != nil {
+		k.logger.Error("unable to get cluster", "err", err, "id", ID)
+		return nil, err
+	}
+	return c, nil
+}
+
+func (k *KoorCluster) runSshAgent(ctx context.Context) error {
+	const (
+		filePermission = 0600
+		fileKeyName    = "id_ed25519"
+	)
 	//Generate SSH key
 	keys, err := ssh.GenerateKey()
 	if err != nil {
 		k.logger.Error("unable to generate ssh keys", "err", err)
 		return err
 	}
-	fmt.Println("============ Saving SSH Keys  ==============")
+
+	privateKeyFile := fmt.Sprintf("%s/%s", k.templatesDst, fileKeyName)
+	publicKeyFile := fmt.Sprintf("%s/%s.pub", k.templatesDst, fileKeyName)
 	//Save ssh into clients folder
-	err = files.SaveInFile(k.templatesDst+"/id_ed25519", keys.Private, 0600)
+	err = files.SaveInFile(privateKeyFile, keys.Private, filePermission)
 	if err != nil {
 		k.logger.Error("unable to generate ssh keys", "err", err)
 		return err
 	}
-	err = files.SaveInFile(k.templatesDst+"/id_ed25519.pub", keys.Public, 0600)
+	err = files.SaveInFile(publicKeyFile, keys.Public, filePermission)
 	if err != nil {
 		k.logger.Error("unable to generate ssh keys", "err", err)
 		return err
 	}
 
-	fmt.Println("============ Running SSH agent  ==============")
-	err = ssh.RunAgent(k.templatesDst + "/id_ed25519")
+	k.logger.Info("============ Running SSH agent  ==============")
+	err = ssh.RunAgent(privateKeyFile)
 	if err != nil {
 		k.logger.Error("unable to execute ssh agent", "err", err)
 		return err
 	}
-	fmt.Println("============ Running Kubeone service  ==============")
+	return nil
+}
+
+func (k *KoorCluster) BuildCluster(ctx context.Context) (*models.ClusterState, error) {
+	k.logger.Info("BuildCluster", "Provider", k.cluster.Provider.Name, "ID", k.cluster.ID, "Client", k.cluster.Client.ID)
+
+	clusterState := models.NewClusterState(k.cluster)
+	clusterState, err := k.clusterStateRepository.Save(ctx, *clusterState)
+	if err != nil {
+		k.logger.Error("unable to save cluster state", "err", err)
+		return clusterState, err
+	}
+	k.logger.Info("Starting")
+
+	k.logger.Info("Setup client environment")
+	clusterState.Phase = models.ClusterPhaseSetupInit
+	err = k.clusterStateRepository.Update(ctx, *clusterState)
+	if err != nil {
+		k.logger.Error("unable to save cluster state", "err", err)
+		return clusterState, err
+	}
+
+	err = files.CopyDir(k.templatesSrc, k.templatesDst)
+	if err != nil {
+		k.logger.Error("unable to copy template files", "err", err)
+		return clusterState, err
+	}
+
+	k.logger.Info("running kubeone")
 	kubeOneSvc := kubeone.New(k.cluster, k.templatesSrc, k.templatesDst)
-	fmt.Println("============ Generating terraform.tfvars  ==============")
+	k.logger.Info("Creating terraform.tfvars")
 	err = kubeOneSvc.WriteTFVars()
 	if err != nil {
 		k.logger.Error("unable to create terraform.tfvars", "err", err)
-		return err
+		return clusterState, err
 	}
-	fmt.Println("============ Generating kubeone.yaml  ==============")
+	k.logger.Info("Generating kubeone.yaml")
 	err = kubeOneSvc.WriteConfigFile()
 	if err != nil {
 		k.logger.Error("unable to create kubeone.yaml", "err", err)
+		return clusterState, err
+	}
+
+	clusterState.Phase = models.ClusterPhaseSetupDone
+	err = k.clusterStateRepository.Update(ctx, *clusterState)
+	if err != nil {
+		k.logger.Error("unable to save cluster state", "err", err)
+		return clusterState, err
+	}
+
+	err = k.subject.Notify(clusterState)
+	if err != nil {
+		k.logger.Error("unable to notify", "err", err)
+		return clusterState, err
+	}
+
+	k.logger.Info("Done")
+	return clusterState, nil
+}
+
+func (k *KoorCluster) ResumeCluster(ctx context.Context, clusterState models.ClusterState) error {
+	k.logger.Info("resume cluster", "id", clusterState.ID)
+
+	c, err := k.Cluster(ctx, clusterState.ClusterID)
+	if err != nil {
+		k.logger.Error("unable to get the cluster ", "err", err, "clusterID", clusterState.ID)
+	}
+
+	fmt.Println("============ Resume Cluster state  ==============")
+	k.templatesSrc = k.templatesSrc + "hetzner"
+	k.templatesDst = k.templatesDst + c.Client.ID.String()
+	kubeOneSvc := kubeone.New(c, k.templatesSrc, k.templatesDst)
+	c.ClusterState.Phase = models.ClusterPhaseSshInit
+	cs := c.ClusterState
+
+	err = k.clusterStateRepository.Update(ctx, cs)
+	if err != nil {
+		k.logger.Error("unable to save the state of the cluster ", "err ", err, "clusterID", clusterState.ID)
+	}
+
+	k.logger.Info("running ssh agent")
+	err = k.runSshAgent(ctx)
+	if err != nil {
+		k.logger.Error("unable to run ssh agent", "err", err)
 		return err
 	}
-	fmt.Println("============ running terraform  ==============")
+	cs.Phase = models.ClusterPhaseSshDone
+	err = k.clusterStateRepository.Update(ctx, cs)
+	if err != nil {
+		k.logger.Error("unable to save the state of the cluster ", "err ", err, "clusterID", clusterState.ID)
+	}
+
+	cs.Phase = models.ClusterPhaseTerraformInit
+	err = k.clusterStateRepository.Update(ctx, cs)
+	if err != nil {
+		k.logger.Error("unable to save the state of the cluster ", "err ", err, "clusterID", clusterState.ID)
+	}
+	k.logger.Info("running terraform")
 	err = kubeOneSvc.RunTerraform()
 	if err != nil {
 		k.logger.Error("unable to run terraform", "err", err)
 		return err
 	}
-	fmt.Println("============ running kubeone  ==============")
+
+	cs.Phase = models.ClusterPhaseTerraformDone
+	err = k.clusterStateRepository.Update(ctx, cs)
+	if err != nil {
+		k.logger.Error("unable to save the state of the cluster ", "err ", err, "clusterID", clusterState.ID)
+	}
+	cs.Phase = models.ClusterPhaseKubeOneInit
+	err = k.clusterStateRepository.Update(ctx, cs)
+	if err != nil {
+		k.logger.Error("unable to save the state of the cluster ", "err ", err, "clusterID", clusterState.ID)
+	}
+	k.logger.Info("running kubeone")
 	_, err = kubeOneSvc.RunKubeOne()
 	if err != nil {
 		k.logger.Error("unable to run kubeone", "err", err)
 		return err
 	}
-
-	fmt.Println("----- Awaiting to get ready the servers 60.. seconds -----------")
-	time.Sleep(60 * time.Second)
-
-	token := "..."
-	cloudProvider := hetzner.NewProvider(token)
-	fmt.Println("======== Attaching Volumes! ===========")
-	labels := map[string]string{
-		"kubeone_cluster_name": fmt.Sprintf("koor-client-%s", k.cluster.Client.Name),
-		fmt.Sprintf("koor-client-%s-workers", k.cluster.Client.Name): "pool1",
+	cs.Phase = models.ClusterPhaseKubeOneDone
+	err = k.clusterStateRepository.Update(ctx, cs)
+	if err != nil {
+		k.logger.Error("unable to save the state of the cluster ", "err ", err, "clusterID", clusterState.ID)
 	}
-	//	labels := fmt.Sprintf("kubeone_cluster_name=koor-client-%s,koor-client-%s-workers=pool1", customer, customer)
-	servers, err := cloudProvider.GetServerByLabels(ctx, labels)
+
+	k.logger.Info("Awaiting to get ready the servers 20.. seconds")
+	time.Sleep(20 * time.Second)
+	cs.Phase = models.ClusterPhaseProviderConfInit
+	err = k.clusterStateRepository.Update(ctx, cs)
+	if err != nil {
+		k.logger.Error("unable to save the state of the cluster ", "err ", err, "clusterID", clusterState.ID)
+	}
+	cloudProvider := hetzner.NewProvider(c.Client.Name)
+	servers, err := cloudProvider.GetServerByLabels(ctx)
+	if err != nil {
+		k.logger.Error("unable to get server error:", "err", err)
+		return err
+	}
+	k.logger.Info("attaching volumes")
+	err = cloudProvider.AttacheVolumesToServers(ctx, servers)
 	if err != nil {
 		k.logger.Error("unable to get server error:", "err", err)
 		return err
 	}
 
-	volLabels := map[string]string{"koor-client": k.cluster.Client.Name, "pool": "pool1"}
-	for _, server := range servers {
-		serverName := server.Name
-		fmt.Println("======== Attaching Volume to " + serverName + " ===========")
-		name := fmt.Sprintf("data-%s-pool1-%s", k.cluster.Client.Name, serverName[len(serverName)-5:])
-		err = cloudProvider.AttachVolumeToServer(ctx, server, volLabels, 40, name, false)
-		if err != nil {
-			k.logger.Error("unable to create volume:", "err", err)
-			return err
-		}
+	cs.Phase = models.ClusterPhaseProviderConfDone
+	err = k.clusterStateRepository.Update(ctx, cs)
+	if err != nil {
+		k.logger.Error("unable to save the state of the cluster ", "err ", err, "clusterID", clusterState.ID)
 	}
 
-	fmt.Println("======== Attaching Volumes Done! ===========")
-	fmt.Println("======== Installing HELM CHARTS ===========")
-
-	kubeConfigName := fmt.Sprintf("koor-client-%s-kubeconfig", k.cluster.Client.Name)
+	cs.Phase = models.ClusterPhaseClusterReady
+	err = k.clusterStateRepository.Update(ctx, cs)
+	if err != nil {
+		k.logger.Error("unable to save the state of the cluster ", "err ", err, "clusterID", clusterState.ID)
+	}
+	//
+	k.logger.Info("installing rook-ceph")
+	kubeConfigName := fmt.Sprintf("koor-client-%s-kubeconfig", c.Client.Name)
+	cs.Phase = models.ClusterPhaseInstallCephInit
+	err = k.clusterStateRepository.Update(ctx, cs)
+	if err != nil {
+		k.logger.Error("unable to save the state of the cluster ", "err ", err, "clusterID", clusterState.ID)
+	}
 	k8sCluster := k8s.New(k.templatesDst + "/" + kubeConfigName)
 	k8sCluster.InstallCharts()
 	fmt.Println("======== Installing HELM CHARTS Done! ===========")
 	fmt.Println("============ Done ==============")
+	cs.Phase = models.ClusterPhaseInstallCephDone
+	err = k.clusterStateRepository.Update(ctx, cs)
+	if err != nil {
+		k.logger.Error("unable to save the state of the cluster ", "err ", err, "clusterID", clusterState.ID)
+	}
 	return nil
 }
+
+//
+//func (k *KoorCluster) GetKoorCluster(ctx context.Context, id uuid.UUID) (*models.Cluster, error) {
+//
+//	return nil, nil
+//}
+//
+//func (k *KoorCluster) RemoveResources(ctx context.Context) {
+//	// Getting volumes
+//	// Dettach volumes
+//	//run terraform destroy
+//}
