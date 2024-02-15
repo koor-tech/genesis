@@ -1,52 +1,60 @@
-FROM golang:alpine as builder
+# Go build
+FROM golang:1.21-alpine3.19 as builder
 
 WORKDIR /app
 
-RUN apk --no-cache add curl unzip
-
 COPY . .
 
-RUN curl -LO "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl" && \
+RUN CGO_ENABLED=0 GOOS=linux \
+    go build -a -installsuffix cgo -o genesis .
+
+# Kubectl
+FROM docker.io/library/alpine:3.19 as kubectl
+
+ENV KUBECTL_VERSION="1.29.2"
+
+RUN apk --no-cache add curl && \
+    curl -LO "https://storage.googleapis.com/kubernetes-release/release/v${KUBECTL_VERSION}/bin/linux/amd64/kubectl" && \
     chmod +x ./kubectl && \
     mv ./kubectl /usr/local/bin/
 
-RUN curl -O https://releases.hashicorp.com/terraform/1.0.11/terraform_1.0.11_linux_amd64.zip && \
-    unzip terraform_1.0.11_linux_amd64.zip && \
+# Terraform
+FROM docker.io/library/alpine:3.19 as terraform
+
+ENV TERRAFORM_VERSION="1.0.11"
+
+RUN apk --no-cache add curl && \
+    curl -O "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip" && \
+    unzip "terraform_${TERRAFORM_VERSION}_linux_amd64.zip" && \
     mv terraform /usr/local/bin/ && \
-    rm terraform_1.0.11_linux_amd64.zip
+    rm "terraform_${TERRAFORM_VERSION}_linux_amd64.zip"
 
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
+# App Image
+FROM docker.io/library/alpine:3.19
 
-FROM alpine:latest
-
-ENV HCLOUD_TOKEN token
+ENV KUBEONE_VERSION="1.7.2"
 
 RUN apk update && \
     apk upgrade && \
     apk add --no-cache curl && \
     apk add --no-cache sudo && \
-    apk add --no-cache ca-certificates
+    apk add --no-cache ca-certificates && \
+    addgroup -S appgroup && \
+    adduser -S koor -G appgroup && \
+    mkdir -p /koor/clients/templates && \
+    curl -sfL get.kubeone.io | sh && \
+    cp -r "kubeone_${KUBEONE_VERSION}_linux_amd64/examples/terraform/"* /koor/clients/templates/ && \
+    rm -rf "kubeone_${KUBEONE_VERSION}_linux_amd64" && \
+    chown -R koor:appgroup /koor/clients
 
-RUN addgroup -S appgroup && adduser -S koor -G appgroup
+COPY --from=builder /app/genesis /usr/local/bin/genesis
+COPY --from=kubectl /usr/local/bin/kubectl /usr/local/bin/kubectl
+COPY --from=terraform /usr/local/bin/terraform /usr/local/bin/terraform
 
-USER koor
+WORKDIR /koor/
 
-WORKDIR /home/koor/
-
-## this should be a volume from ceph
-
-COPY --from=builder /usr/local/bin/kubectl /usr/local/bin/kubectl
-COPY --from=builder /usr/local/bin/terraform /usr/local/bin/terraform
-COPY --from=builder /app/main .
-
-USER root
-RUN mkdir -p /koor/clients/templates
-RUN chown koor:appgroup /home/koor/main
-RUN curl -sfL get.kubeone.io | sh
-RUN cp -r /home/koor/kubeone_1.7.2_linux_amd64/examples/terraform/* /koor/clients/templates/
-RUN chown -R koor:appgroup /koor/clients /home/koor/main /usr/local/bin/terraform /usr/local/bin/kubectl
 USER koor
 
 EXPOSE 8000
 
-ENTRYPOINT ["./main"]
+ENTRYPOINT ["/usr/local/bin/genesis"]
