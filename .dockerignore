@@ -1,3 +1,5 @@
 postgres-data/
 .gitignore
 .git/
+.env
+config.yaml
