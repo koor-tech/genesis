@@ -5,26 +5,24 @@ import (
 	"fmt"
 	"github.com/hetznercloud/hcloud-go/v2/hcloud"
 	"github.com/koor-tech/genesis/pkg/utils"
-	"github.com/spf13/viper"
 	"log"
 	"strings"
 )
 
 type Provider struct {
-	Client     *hcloud.Client
-	clientName string
+	Client *hcloud.Client
 }
 
-func NewProvider(customer string) *Provider {
+func NewProvider() *Provider {
+	cfg := NewConfig()
 	return &Provider{
-		Client:     hcloud.NewClient(hcloud.WithToken(viper.GetString("hetzner.token"))),
-		clientName: customer,
+		Client: hcloud.NewClient(hcloud.WithToken(cfg.Token)),
 	}
 }
 
-func (p *Provider) buildLabels() string {
-	clusterNameLabel := fmt.Sprintf("koor-client-%s", p.clientName)
-	clusterWorkerLabelKey := fmt.Sprintf("koor-client-%s-workers", p.clientName)
+func (p *Provider) buildLabels(ctx context.Context, customerName string) string {
+	clusterNameLabel := fmt.Sprintf("koor-client-%s", customerName)
+	clusterWorkerLabelKey := fmt.Sprintf("koor-client-%s-workers", customerName)
 
 	labels := map[string]string{
 		"kubeone_cluster_name": clusterNameLabel,
@@ -38,8 +36,8 @@ func (p *Provider) buildLabels() string {
 	return strings.Join(hetznerLabels, ",")
 }
 
-func (p *Provider) GetServerByLabels(ctx context.Context) ([]*hcloud.Server, error) {
-	hetznerLabels := p.buildLabels()
+func (p *Provider) GetServerByLabels(ctx context.Context, customerName string) ([]*hcloud.Server, error) {
+	hetznerLabels := p.buildLabels(ctx, customerName)
 	filterOpts := hcloud.ServerListOpts{
 		ListOpts: hcloud.ListOpts{
 			LabelSelector: hetznerLabels,
@@ -55,11 +53,11 @@ func (p *Provider) GetServerByLabels(ctx context.Context) ([]*hcloud.Server, err
 	return servers, nil
 }
 
-func (p *Provider) AttacheVolumesToServers(ctx context.Context, servers []*hcloud.Server) error {
-	volLabels := map[string]string{"koor-client": p.clientName, "pool": "pool1"}
+func (p *Provider) AttacheVolumesToServers(ctx context.Context, customerName string, servers []*hcloud.Server) error {
+	volLabels := map[string]string{"koor-client": customerName, "pool": "pool1"}
 	for _, server := range servers {
 		serverName := server.Name
-		name := fmt.Sprintf("data-%s-pool1-%s", p.clientName, serverName[len(serverName)-5:])
+		name := fmt.Sprintf("data-%s-pool1-%s", customerName, serverName[len(serverName)-5:])
 		err := p.AttachVolumeToServer(ctx, server, volLabels, 40, name, false)
 		if err != nil {
 			log.Print("unable to create volume:", "err", err)

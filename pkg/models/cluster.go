@@ -4,9 +4,9 @@ import "github.com/google/uuid"
 
 type Cluster struct {
 	ID           uuid.UUID    `db:"id"`
-	ClientID     uuid.UUID    `db:"client_id"`
+	CustomerID   uuid.UUID    `db:"customer_id"`
 	ProviderID   uuid.UUID    `db:"provider_id"`
-	Client       Client       `db:"clients"`
+	Customer     Customer     `db:"customers"`
 	Provider     Provider     `db:"providers"`
 	ClusterState ClusterState `db:"cs"`
 }

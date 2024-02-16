@@ -1,4 +1,4 @@
-package clients
+package customers
 
 import (
 	"context"
@@ -11,38 +11,38 @@ import (
 	"github.com/koor-tech/genesis/pkg/models"
 )
 
-type ClientsRepository struct {
+type CustomersRepository struct {
 	db *database.DB
 }
 
-func NewClientsRepository(db *database.DB) *ClientsRepository {
-	return &ClientsRepository{
+func NewCustomersRepository(db *database.DB) *CustomersRepository {
+	return &CustomersRepository{
 		db: db,
 	}
 }
 
-func (r *ClientsRepository) Save(ctx context.Context, client models.Client) (*models.Client, error) {
+func (r *CustomersRepository) Save(ctx context.Context, customer *models.Customer) (*models.Customer, error) {
 	sqlStmt, args, _ := sq.StatementBuilder.PlaceholderFormat(sq.Dollar).
-		Insert(`clients`).
+		Insert(`customers`).
 		Columns(`id`, `name`).
-		Values(client.ID, client.Name).
+		Values(customer.ID, customer.Name).
 		ToSql()
 
 	_, err := r.db.Conn.ExecContext(ctx, sqlStmt, args...)
 	if err != nil {
 		return nil, err
 	}
-	return &client, nil
+	return customer, nil
 }
 
-func (r *ClientsRepository) QueryByID(ctx context.Context, ID uuid.UUID) (*models.Client, error) {
+func (r *CustomersRepository) QueryByID(ctx context.Context, ID uuid.UUID) (*models.Customer, error) {
 	var builder = sq.StatementBuilder.PlaceholderFormat(sq.Dollar).
 		Select(
 			`c.id`,
 			`cs.name`,
 		).
-		From(`clients c`)
-	var c models.Client
+		From(`customers c`)
+	var c models.Customer
 
 	sqlStmt, args, _ := builder.Where(`c.id = $1`, ID).ToSql()
 	if err := r.db.Conn.GetContext(ctx, &c, sqlStmt, args...); err != nil {

@@ -24,8 +24,8 @@ func NewClusterRepository(db *database.DB) *ClusterRepository {
 func (r *ClusterRepository) Save(ctx context.Context, cluster models.Cluster) (*models.Cluster, error) {
 	sqlStmt, args, _ := sq.StatementBuilder.PlaceholderFormat(sq.Dollar).
 		Insert(`clusters`).
-		Columns(`id`, `client_id`, `provider_id`).
-		Values(cluster.ID, cluster.Client.ID, cluster.Provider.ID).
+		Columns(`id`, `customer_id`, `provider_id`).
+		Values(cluster.ID, cluster.Customer.ID, cluster.Provider.ID).
 		ToSql()
 
 	_, err := r.db.Conn.ExecContext(ctx, sqlStmt, args...)
@@ -39,9 +39,9 @@ func (r *ClusterRepository) QueryByID(ctx context.Context, clusterID uuid.UUID) 
 	var builder = sq.StatementBuilder.PlaceholderFormat(sq.Dollar).
 		Select(
 			`c.id`,
-			`c.client_id`,
-			`clients.id as "clients.id"`,
-			`clients.name as "clients.name"`,
+			`c.customer_id`,
+			`customers.id as "customers.id"`,
+			`customers.name as "customers.name"`,
 			`c.provider_id`,
 			`p.id as "providers.id"`,
 			`p.name as "providers.name"`,
@@ -50,7 +50,7 @@ func (r *ClusterRepository) QueryByID(ctx context.Context, clusterID uuid.UUID) 
 			`cs.cluster_id as "cs.cluster_id"`,
 		).
 		From(`clusters c`).
-		InnerJoin("clients on clients.id = c.client_id").
+		InnerJoin("customers on customers.id = c.customer_id").
 		InnerJoin("providers p on p.id = c.provider_id").
 		InnerJoin("cluster_state cs on cs.cluster_id = c.id")
 

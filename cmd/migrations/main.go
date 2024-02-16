@@ -7,7 +7,6 @@ import (
 	"github.com/pressly/goose/v3"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"log"
 	"os"
 )
 
@@ -24,8 +23,15 @@ var migrateCmd = &cobra.Command{
 		if len(args) > 1 {
 			arguments = append(arguments, args[1:]...)
 		}
-		command := args[0]
-		db, err := goose.OpenDBWithDriver(database.DriverNamePostgres, viper.GetString("database.uri"))
+		var command string
+		if len(args) == 0 {
+			command = "status"
+
+		} else {
+			command = args[0]
+		}
+		dbConfig := database.NewConfig()
+		db, err := goose.OpenDBWithDriver(database.DriverNamePostgres, dbConfig.Uri())
 		if err != nil {
 			return
 		}
@@ -34,13 +40,7 @@ var migrateCmd = &cobra.Command{
 }
 
 func init() {
-	viper.SetConfigName("../../config")
-	viper.AddConfigPath(".")
-	viper.SetConfigType("yaml")
-
-	if err := viper.ReadInConfig(); err != nil {
-		log.Fatalf("Error reading configuration, %s", err)
-	}
+	viper.AutomaticEnv()
 	rootCmd.AddCommand(migrateCmd)
 }
 

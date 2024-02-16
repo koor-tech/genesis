@@ -2,9 +2,7 @@ package rabbitmq
 
 import (
 	"context"
-	"fmt"
 	amqp "github.com/rabbitmq/amqp091-go"
-	"github.com/spf13/viper"
 	"log"
 	"time"
 )
@@ -15,15 +13,11 @@ type Client struct {
 }
 
 func NewClient() *Client {
-	host := viper.GetString("rabbitmq.host")
-	port := viper.GetInt("rabbitmq.port")
-	user := viper.GetString("rabbitmq.user")
-	password := viper.GetString("rabbitmq.password")
-	rabbitURL := fmt.Sprintf("amqp://%s:%s@%s:%d/", user, password, host, port)
-	conn, err := amqp.Dial(rabbitURL)
+	config := NewConfig()
+	conn, err := amqp.Dial(config.Url())
 	//defer conn.Close()
 	if err != nil {
-		log.Fatal("unable to connect with rabbit", "err", err)
+		log.Fatal("unable to connect with rabbit", "err", err, "url", config.Url())
 	}
 
 	ch, err := conn.Channel()

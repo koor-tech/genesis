@@ -98,12 +98,12 @@ func (c *Cluster) InstallCharts() {
 
 		Force: true,
 	}
-	fmt.Println("========== installing Ceph Cluster Helm Chart  =======")
+	fmt.Println("========== installing Ceph GetCluster Helm Chart  =======")
 	clusterRelease, err := helmClient.InstallOrUpgradeChart(context.Background(), chartClusterSpec, nil)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("========= Ceph Cluster Deployed =================")
+	fmt.Println("========= Ceph GetCluster Deployed =================")
 	fmt.Printf("release: %+v\n", clusterRelease.Name)
 
 	releases, err := helmClient.ListDeployedReleases()

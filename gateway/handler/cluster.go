@@ -7,6 +7,8 @@ import (
 	"github.com/koor-tech/genesis/gateway/request"
 	"github.com/koor-tech/genesis/internal/cluster"
 	"github.com/koor-tech/genesis/pkg/database"
+	"github.com/koor-tech/genesis/pkg/models"
+	"github.com/koor-tech/genesis/pkg/rabbitmq"
 	"net/http"
 )
 
@@ -21,13 +23,13 @@ func CreateCluster(c *gin.Context) {
 		return
 	}
 
-	clusterSvc := cluster.NewKoorCluster(database.NewDB())
-	err := clusterSvc.NewCluster(context.Background(), createClusterRequest)
-	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err})
-		return
+	clusterSvc := cluster.NewKoorCluster(database.NewDB(), rabbitmq.NewClient())
+
+	customer := models.Customer{
+		ID:   uuid.New(),
+		Name: createClusterRequest.ClientName,
 	}
-	clusterState, err := clusterSvc.BuildCluster(c)
+	clusterState, err := clusterSvc.BuildCluster(c, &customer, uuid.MustParse("80be226b-8355-4dea-b41a-6e17ea37559a"))
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err})
 		return
@@ -37,8 +39,8 @@ func CreateCluster(c *gin.Context) {
 
 func GetCluster(c *gin.Context) {
 	clusterID := uuid.MustParse(c.Param("id"))
-	clusterSvc := cluster.NewKoorCluster(database.NewDB())
-	koorCluster, err := clusterSvc.Cluster(context.Background(), clusterID)
+	clusterSvc := cluster.NewKoorCluster(database.NewDB(), rabbitmq.NewClient())
+	koorCluster, err := clusterSvc.GetCluster(context.Background(), clusterID)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": err})
 		return

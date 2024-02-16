@@ -1,5 +1,5 @@
 -- +goose Up
-CREATE TABLE clients (
+CREATE TABLE customers (
     id UUID PRIMARY KEY,
     name VARCHAR(255),
     created_at TIMESTAMP DEFAULT now() NOT NULL,
@@ -15,16 +15,16 @@ CREATE TABLE providers (
 
 CREATE TABLE clusters (
    id UUID PRIMARY KEY,
-   client_id UUID,
+   customer_id UUID,
    provider_id UUID,
    created_at TIMESTAMP DEFAULT now() NOT NULL,
    updated_at TIMESTAMP DEFAULT now() NOT NULL
 );
 
  ALTER TABLE clusters
-   ADD CONSTRAINT fk_clusters_client_id
-   FOREIGN KEY (client_id)
-   REFERENCES clients(id)
+   ADD CONSTRAINT fk_clusters_customer_id
+   FOREIGN KEY (customer_id)
+   REFERENCES customers(id)
    ON DELETE CASCADE;
 
  ALTER TABLE clusters
@@ -50,4 +50,4 @@ CREATE TABLE cluster_state (
 DROP TABLE cluster_state;
 DROP TABLE clusters;
 DROP TABLE providers;
-DROP TABLE clients;
+DROP TABLE customers;

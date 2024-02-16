@@ -3,7 +3,6 @@ package database
 import (
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
-	"github.com/spf13/viper"
 	"log/slog"
 	"os"
 	"time"
@@ -20,9 +19,10 @@ type DB struct {
 }
 
 func NewDB() *DB {
+	dbConfig := NewConfig()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	return &DB{
-		Conn: connect(logger, viper.GetString("database.uri")),
+		Conn: connect(logger, dbConfig.Uri()),
 	}
 }
 

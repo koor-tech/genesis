@@ -11,21 +11,21 @@ import (
 )
 
 type Worker struct {
-	queueClient *rabbitmq.Client
-	db          *database.DB
+	rabbitMQClient *rabbitmq.Client
+	db             *database.DB
 }
 
 func NewWorker() *Worker {
 	queue := rabbitmq.NewClient()
 	queue.QueueDeclare()
 	return &Worker{
-		queueClient: queue,
-		db:          database.NewDB(),
+		rabbitMQClient: queue,
+		db:             database.NewDB(),
 	}
 }
 
 func (w *Worker) ResumeCluster() {
-	msgs := w.queueClient.Consume()
+	msgs := w.rabbitMQClient.Consume()
 	forever := make(chan bool)
 
 	go func() {
@@ -47,8 +47,8 @@ func (w *Worker) processMessage(body []byte) {
 		return
 	}
 
-	k := cluster.NewKoorCluster(w.db)
-	err = k.ResumeCluster(context.Background(), state)
+	k := cluster.NewKoorCluster(w.db, w.rabbitMQClient)
+	err = k.ResumeCluster(context.Background(), state.ClusterID)
 	if err != nil {
 		log.Printf("Error running ResumeCluster: %s", err)
 		return
