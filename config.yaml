@@ -1,7 +1,0 @@
-rabbitmq:
-  host: localhost
-  port: 5672
-  user: user
-  password: password
-database:
-  uri: postgresql://postgres:password@localhost:5433/koor-genesis?sslmode=disable

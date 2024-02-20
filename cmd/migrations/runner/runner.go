@@ -3,14 +3,17 @@ package runner
 import (
 	"context"
 	"database/sql"
+	_ "github.com/lib/pq"
 	"github.com/pressly/goose/v3"
 	"log"
-
-	_ "github.com/lib/pq"
 )
 
-func RunMigration(command string, db *sql.DB, dir string, args ...string) {
-	if err := goose.RunContext(context.Background(), command, db, dir, args...); err != nil {
-		log.Fatalf("goose %v: %v", command, err)
+const (
+	migrationsDir = "/genesis/bin/migrations"
+)
+
+func RunMigration(command string, db *sql.DB, args ...string) {
+	if err := goose.RunContext(context.Background(), command, db, migrationsDir, args...); err != nil {
+		log.Fatalf("goose %v: %v dir: %s", command, err, migrationsDir)
 	}
 }

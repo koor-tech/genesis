@@ -35,7 +35,7 @@ var migrateCmd = &cobra.Command{
 		if err != nil {
 			return
 		}
-		runner.RunMigration(command, db, "migrations", arguments...)
+		runner.RunMigration(command, db, arguments...)
 	},
 }
 

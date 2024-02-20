@@ -1,19 +1,19 @@
-IMAGE_NAME=koor-tech/genesis
-CONTAINER_NAME=koor-genesis
+IMAGE_PREFIX=koor-tech/genesis
 
-all: build run
+build-base:
+	docker build -t koor-tech/genesis-base-builder:latest -f base.Dockerfile .
 
-build: Dockerfile
-	@echo "Building Koor platform ..."
-	docker build -t $(IMAGE_NAME) .
+build-api:
+	@make build-base
+	docker build -t $(IMAGE_PREFIX)-api -f Dockerfile .
+
+build-worker:
+	@make build-base
+	docker build -t $(IMAGE_PREFIX)-worker -f ./cmd/worker/Dockerfile .
+
+build-migrate:
+	docker build -t $(IMAGE_PREFIX)-migrate -f ./cmd/migrations/Dockerfile .
 
 run:
 	@echo "Running Koor platform..."
 	docker run -e HCLOUD_TOKEN= -d -p 8101:8000 --name $(CONTAINER_NAME) $(IMAGE_NAME)
-
-clean:
-	@echo "Cleaning up..."
-	docker stop $(CONTAINER_NAME)
-	docker rm $(CONTAINER_NAME)
-
-.PHONY: all build run clean

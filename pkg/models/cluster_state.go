@@ -1,6 +1,5 @@
 package models
 
-import "C"
 import (
 	"encoding/json"
 	"github.com/google/uuid"

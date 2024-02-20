@@ -1,10 +1,10 @@
-FROM golang:alpine as builder
+ARG BUILDER=koor-tech/genesis-base-builder:latest
+FROM $BUILDER as builder
 
 WORKDIR /app
 
 RUN apk --no-cache add curl unzip
 
-COPY . .
 
 RUN curl -LO "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl" && \
     chmod +x ./kubectl && \
