@@ -13,7 +13,7 @@ type TerraformConfig struct {
 
 func NewTerraformConfig(cluster *Cluster, dst string) *TerraformConfig {
 	return &TerraformConfig{
-		ClusterName:                      "koor-client-" + cluster.Client.Name,
+		ClusterName:                      "koor-client-" + cluster.Customer.Name,
 		SshPublicKeyFile:                 dst + "/id_ed25519.pub",
 		ControlPlaneVmCount:              3,
 		InitialMachineDeploymentReplicas: 3,

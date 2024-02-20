@@ -20,7 +20,7 @@ type Builder struct {
 	dst    string
 }
 
-func New(cluster *models.Cluster, src, dst string) *Builder {
+func New(cluster *models.Cluster, dst string) *Builder {
 	return &Builder{
 		dst:    dst,
 		config: models.NewTerraformConfig(cluster, dst),
@@ -56,7 +56,7 @@ func (b *Builder) WriteConfigFile() error {
 	if err != nil {
 		return err
 	}
-	err = files.SaveInFile(b.dst+"/kubeone-example.yaml", string(configData), 0600)
+	err = files.SaveInFile(b.dst+"/kubeone.yaml", string(configData), 0600)
 	if err != nil {
 		return err
 	}
@@ -69,8 +69,6 @@ func (b *Builder) RunTerraform() error {
 		log.Printf("error running NewTerraform: %s", err)
 		return err
 	}
-
-	fmt.Println("==========  running... terraform init  ==========")
 
 	err = tf.Init(context.Background(), tfexec.Upgrade(true))
 	if err != nil {

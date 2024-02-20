@@ -1,0 +1,6 @@
+# GoLand
+*.iml
+*.idea
+
+# JetBrains IDEs
+.idea/

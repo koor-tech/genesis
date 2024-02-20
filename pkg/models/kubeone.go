@@ -1,22 +1,22 @@
 package models
 
 type Versions struct {
-	Kubernetes string `json:"kubernetes"`
+	Kubernetes string `yaml:"kubernetes"`
 }
 
 type CloudProviderHetzner struct {
 }
 
 type CloudProvider struct {
-	Hetzner  CloudProviderHetzner `json:"hetzner"`
-	External bool                 `json:"external"`
+	Hetzner  CloudProviderHetzner `yaml:"hetzner"`
+	External bool                 `yaml:"external"`
 }
 
 type KubeOneConfig struct {
-	ApiVersion    string        `json:"apiVersion"`
-	Kind          string        `json:"kind"`
-	Versions      Versions      `json:"versions"`
-	CloudProvider CloudProvider `json:"cloud_provider"`
+	ApiVersion    string        `yaml:"apiVersion"`
+	Kind          string        `yaml:"kind"`
+	Versions      Versions      `yaml:"versions"`
+	CloudProvider CloudProvider `yaml:"cloudProvider"`
 }
 
 func NewKubeOneConfig() *KubeOneConfig {

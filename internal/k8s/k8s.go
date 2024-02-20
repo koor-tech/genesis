@@ -17,24 +17,33 @@ func New(kubeConfigFile string) *Cluster {
 	return &Cluster{
 		kubeConfigFile: kubeConfigFile,
 	}
-	//// get kubernetes client
-	//client, _ := kubernetes.NewForConfig(config)
-	//client = client
 }
+
+const (
+	rookCephClusterChartValues  = "../../charts/rook-ceph-cluster/values.yaml"
+	rookCephOperatorChartValues = "../../charts/rook-ceph/values.yaml"
+)
 
 func (c *Cluster) InstallCharts() {
 	fmt.Println("======== Installing helm charts running... ===========")
-	// Read the kubeconfig file
+	// read configurations
 	kubeConf, err := os.ReadFile(c.kubeConfigFile)
 	if err != nil {
 		log.Fatal(fmt.Errorf("could not load KubeConfig: %v", err))
+	}
+	valuesRookOperatorYaml, err := os.ReadFile(rookCephOperatorChartValues)
+	if err != nil {
+		log.Fatal(fmt.Errorf("could not load values.yaml for rook-operator: %v", err))
+	}
+	valuesRookClusterYaml, err := os.ReadFile(rookCephClusterChartValues)
+	if err != nil {
+		log.Fatal(fmt.Errorf("could not load values.yaml for rook-cluster: %v", err))
 	}
 
 	fmt.Println("======== Preparing helm .. ===========")
 
 	opt := &helmclient.KubeConfClientOptions{
 		Options: &helmclient.Options{
-			//Namespace:        "rook-ceph",
 			RepositoryCache:  "/tmp/.helmcache",
 			RepositoryConfig: "/tmp/.helmrepo",
 			Debug:            true,
@@ -50,10 +59,6 @@ func (c *Cluster) InstallCharts() {
 		panic(err)
 	}
 
-	fmt.Println("==========================")
-	fmt.Printf("helmClient: %+v\n", helmClient)
-	fmt.Println("==========================")
-	fmt.Println("adding chart")
 	chartRepo := repo.Entry{
 		Name: "rook-release",
 		URL:  "https://charts.rook.io/release",
@@ -61,14 +66,6 @@ func (c *Cluster) InstallCharts() {
 
 	if err := helmClient.AddOrUpdateChartRepo(chartRepo); err != nil {
 		panic(err)
-	}
-
-	fmt.Println("==========================")
-	fmt.Println("helm chart rook-ceph added")
-
-	valuesRookOperatorYaml, err := os.ReadFile("/home/javier/src/koor-platform/charts/rook-ceph/values.yaml")
-	if err != nil {
-		log.Fatal(fmt.Errorf("could not load KubeConfig: %v", err))
 	}
 
 	chartSpec := helmclient.ChartSpec{
@@ -90,16 +87,6 @@ func (c *Cluster) InstallCharts() {
 	fmt.Println("========= Ceph Operator Deployed =================")
 	fmt.Printf("release: %+v\n", release.Name)
 
-	//fmt.Println("========= removing Ceph Operator =================")
-	//err = helmClient.RollbackRelease(chartSpec)
-	//if err != nil {
-	//	panic(err)
-	//}
-
-	valuesRookClusterYaml, err := os.ReadFile("/home/javier/src/koor-platform/charts/rook-ceph-cluster/values.yaml")
-	if err != nil {
-		log.Fatal(fmt.Errorf("could not load KubeConfig: %v", err))
-	}
 	//helm install --create-namespace --namespace rook-ceph rook-ceph-cluster \
 	//--set operatorNamespace=rook-ceph rook-release/rook-ceph-cluster -f values.yaml
 	chartClusterSpec := &helmclient.ChartSpec{
@@ -111,18 +98,13 @@ func (c *Cluster) InstallCharts() {
 
 		Force: true,
 	}
-	fmt.Println("========== installing Ceph Cluster Helm Chart  =======")
+	fmt.Println("========== installing Ceph GetCluster Helm Chart  =======")
 	clusterRelease, err := helmClient.InstallOrUpgradeChart(context.Background(), chartClusterSpec, nil)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("========= Ceph Cluster Deployed =================")
+	fmt.Println("========= Ceph GetCluster Deployed =================")
 	fmt.Printf("release: %+v\n", clusterRelease.Name)
-	//fmt.Println("========= removing Ceph Cluster =================")
-	//err = helmClient.RollbackRelease(chartClusterSpec)
-	//if err != nil {
-	//	panic(err)
-	//}
 
 	releases, err := helmClient.ListDeployedReleases()
 	if err != nil {
