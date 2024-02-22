@@ -39,6 +39,7 @@ COPY --from=builder /usr/local/bin/kubectl /usr/local/bin/kubectl
 COPY --from=builder /usr/local/bin/terraform /usr/local/bin/terraform
 COPY --from=builder /app/main .
 
+
 USER root
 RUN mkdir -p /koor/clients/templates
 RUN chown koor:appgroup /home/koor/main
