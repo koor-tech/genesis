@@ -1,6 +1,84 @@
 version: '3.8'
 
 services:
+
+  api:
+    image: koor-tech/genesis-api
+    build:
+      dockerfile: Dockerfile
+      context: .
+    ports:
+      - "8080:8080"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      store:
+        condition: service_healthy
+    volumes:
+      - .:/genesis-api
+      - clients:/koor/clients
+    environment:
+      - RABBITMQ_DEFAULT_USER=user
+      - RABBITMQ_DEFAULT_PASS=password
+      - RABBITMQ_HOST=rabbitmq
+      - DATABASE_HOST=store
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=password
+      - DATABASE_NAME=koor-genesis
+      - DATABASE_PORT=5432
+      - DATABASE_SSL_ENABLED=false
+      - GENESIS_DATA=/koor/clients
+    env_file:
+      - .env
+
+  worker:
+    image: koor-tech/genesis-worker
+    build:
+      dockerfile: ./cmd/worker/Dockerfile
+      context: .
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      store:
+        condition: service_healthy
+    volumes:
+      - .cmd/worker/:/genesis-worker
+      - clients:/koor/clients
+    environment:
+      - RABBITMQ_DEFAULT_USER=user
+      - RABBITMQ_DEFAULT_PASS=password
+      - RABBITMQ_HOST=rabbitmq
+      - DATABASE_HOST=store
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=password
+      - DATABASE_NAME=koor-genesis
+      - DATABASE_PORT=5432
+      - DATABASE_SSL_ENABLED=false
+      - GENESIS_DATA=/koor/clients
+    env_file:
+      - .env
+
+  migrate:
+    image: koor-tech/genesis-migrate
+    build:
+      dockerfile: ./cmd/migrations/Dockerfile
+      context: .
+    depends_on:
+      store:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      - RABBITMQ_DEFAULT_USER=user
+      - RABBITMQ_DEFAULT_PASS=password
+      - RABBITMQ_HOST=rabbitmq
+      - DATABASE_HOST=store
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=password
+      - DATABASE_NAME=koor-genesis
+      - DATABASE_PORT=5432
+      - DATABASE_SSL_ENABLED=false
+
   rabbitmq:
     image: rabbitmq:3-management
     ports:
@@ -11,6 +89,17 @@ services:
     environment:
       - RABBITMQ_DEFAULT_USER=user
       - RABBITMQ_DEFAULT_PASS=password
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 30s
+      timeout: 30s
+      retries: 3
+
+  emails:
+    image: mailhog/mailhog:latest
+    ports:
+      - "8003:1025"
+      - "8100:8025"
 
   store:
     image: postgres
@@ -18,6 +107,12 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=password
       - POSTGRES_DB=koor-genesis
+    healthcheck:
+      test: [ "CMD-SHELL", "sh -c 'pg_isready -U postgres -d koor-genesis'" ]
+      interval: 30s
+      timeout: 60s
+      retries: 5
+      start_period: 80s
     ports:
       - "5433:5432"
     volumes:
@@ -26,3 +121,4 @@ services:
 volumes:
   rabbitmq-data:
   postgres-data:
+  clients:
