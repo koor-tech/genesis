@@ -16,6 +16,7 @@ services:
         condition: service_healthy
     volumes:
       - .:/genesis-api
+      - clients:/koor/clients
     environment:
       - RABBITMQ_DEFAULT_USER=user
       - RABBITMQ_DEFAULT_PASS=password
@@ -26,6 +27,7 @@ services:
       - DATABASE_NAME=koor-genesis
       - DATABASE_PORT=5432
       - DATABASE_SSL_ENABLED=false
+      - GENESIS_DATA=/koor/clients
     env_file:
       - .env
 
@@ -41,6 +43,7 @@ services:
         condition: service_healthy
     volumes:
       - .cmd/worker/:/genesis-worker
+      - clients:/koor/clients
     environment:
       - RABBITMQ_DEFAULT_USER=user
       - RABBITMQ_DEFAULT_PASS=password
@@ -51,6 +54,7 @@ services:
       - DATABASE_NAME=koor-genesis
       - DATABASE_PORT=5432
       - DATABASE_SSL_ENABLED=false
+      - GENESIS_DATA=/koor/clients
     env_file:
       - .env
 
@@ -74,7 +78,6 @@ services:
       - DATABASE_NAME=koor-genesis
       - DATABASE_PORT=5432
       - DATABASE_SSL_ENABLED=false
-
 
   rabbitmq:
     image: rabbitmq:3-management
@@ -118,3 +121,4 @@ services:
 volumes:
   rabbitmq-data:
   postgres-data:
+  clients:

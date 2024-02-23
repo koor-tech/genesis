@@ -14,6 +14,10 @@ const (
 	clientsDirPrefix  = "clients"
 )
 
+func init() {
+	viper.SetDefault("GENESIS_DATA", "/koor/clients")
+}
+
 func NewConfig() *Config {
 	return &Config{
 		DataDir: viper.GetString("GENESIS_DATA"),
