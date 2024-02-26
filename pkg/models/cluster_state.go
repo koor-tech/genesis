@@ -3,7 +3,6 @@ package models
 import (
 	"encoding/json"
 	"github.com/google/uuid"
-	"time"
 )
 
 type ClusterPhase int
@@ -29,7 +28,6 @@ type ClusterState struct {
 	ID        uuid.UUID    `db:"id"`
 	ClusterID uuid.UUID    `db:"cluster_id"`
 	Phase     ClusterPhase `db:"phase"`
-	Time      time.Time
 	Cluster   *Cluster
 }
 

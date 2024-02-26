@@ -47,7 +47,7 @@ func (w *Worker) processMessage(body []byte) {
 		return
 	}
 
-	k := cluster.NewKoorCluster(w.db, w.rabbitMQClient)
+	k := cluster.NewService(w.db, w.rabbitMQClient)
 	err = k.ResumeCluster(context.Background(), state.ClusterID)
 	if err != nil {
 		log.Printf("Error running ResumeCluster: %s", err)

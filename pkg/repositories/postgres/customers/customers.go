@@ -24,8 +24,8 @@ func NewCustomersRepository(db *database.DB) *CustomersRepository {
 func (r *CustomersRepository) Save(ctx context.Context, customer *models.Customer) (*models.Customer, error) {
 	sqlStmt, args, _ := sq.StatementBuilder.PlaceholderFormat(sq.Dollar).
 		Insert(`customers`).
-		Columns(`id`, `name`).
-		Values(customer.ID, customer.Name).
+		Columns(`id`, `name`, `email`).
+		Values(customer.ID, customer.Name, customer.Email).
 		ToSql()
 
 	_, err := r.db.Conn.ExecContext(ctx, sqlStmt, args...)

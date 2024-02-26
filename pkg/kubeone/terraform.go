@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/terraform-exec/tfexec"
 	"github.com/koor-tech/genesis/pkg/files"
 	"github.com/koor-tech/genesis/pkg/models"
+	"github.com/koor-tech/genesis/pkg/providers/hetzner"
 	"github.com/koor-tech/genesis/pkg/types"
 	"gopkg.in/yaml.v3"
 	"log"
@@ -18,10 +19,14 @@ import (
 type Builder struct {
 	config *models.TerraformConfig
 	dst    string
+	Token  string
 }
 
 func New(cluster *models.Cluster, dst string) *Builder {
+	cfg := hetzner.NewProvider()
+	cfg.ConfigureCredentials()
 	return &Builder{
+		Token:  cfg.Token,
 		dst:    dst,
 		config: models.NewTerraformConfig(cluster, dst),
 	}

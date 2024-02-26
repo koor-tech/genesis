@@ -6,17 +6,30 @@ import (
 	"github.com/hetznercloud/hcloud-go/v2/hcloud"
 	"github.com/koor-tech/genesis/pkg/utils"
 	"log"
+	"os"
 	"strings"
 )
 
 type Provider struct {
 	Client *hcloud.Client
+	Token  string
 }
 
 func NewProvider() *Provider {
 	cfg := NewConfig()
-	return &Provider{
+	p := Provider{
+		Token:  cfg.Token,
 		Client: hcloud.NewClient(hcloud.WithToken(cfg.Token)),
+	}
+
+	p.ConfigureCredentials()
+	return &p
+}
+
+func (p *Provider) ConfigureCredentials() {
+	err := os.Setenv("HCLOUD_TOKEN", p.Token)
+	if err != nil {
+		log.Fatalf("unable to set HCLOUD_TOKEN")
 	}
 }
 

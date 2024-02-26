@@ -23,11 +23,12 @@ func CreateCluster(c *gin.Context) {
 		return
 	}
 
-	clusterSvc := cluster.NewKoorCluster(database.NewDB(), rabbitmq.NewClient())
+	clusterSvc := cluster.NewService(database.NewDB(), rabbitmq.NewClient())
 
 	customer := models.Customer{
-		ID:   uuid.New(),
-		Name: createClusterRequest.ClientName,
+		ID:    uuid.New(),
+		Name:  createClusterRequest.ClientName,
+		Email: createClusterRequest.ClientEmail,
 	}
 	clusterState, err := clusterSvc.BuildCluster(c, &customer, uuid.MustParse("80be226b-8355-4dea-b41a-6e17ea37559a"))
 	if err != nil {
@@ -39,7 +40,7 @@ func CreateCluster(c *gin.Context) {
 
 func GetCluster(c *gin.Context) {
 	clusterID := uuid.MustParse(c.Param("id"))
-	clusterSvc := cluster.NewKoorCluster(database.NewDB(), rabbitmq.NewClient())
+	clusterSvc := cluster.NewService(database.NewDB(), rabbitmq.NewClient())
 	koorCluster, err := clusterSvc.GetCluster(context.Background(), clusterID)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": err})

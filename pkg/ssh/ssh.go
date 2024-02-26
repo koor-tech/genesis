@@ -7,19 +7,27 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
+	"github.com/google/uuid"
+	"github.com/koor-tech/genesis/pkg/models"
 	"golang.org/x/crypto/ssh"
 	"log"
+	"log/slog"
 	"os"
 	"os/exec"
 	"strings"
 )
 
-type Keys struct {
-	Public  string
-	Private string
+type Manager struct {
+	logger *slog.Logger
 }
 
-func GenerateKey() (*Keys, error) {
+func NewManager() *Manager {
+	return &Manager{
+		logger: slog.New(slog.NewTextHandler(os.Stdout, nil)),
+	}
+}
+
+func (m *Manager) GenerateKey() (*models.Ssh, error) {
 	pub, priv, err := ed25519.GenerateKey(nil)
 	if err != nil {
 		return nil, err
@@ -35,13 +43,19 @@ func GenerateKey() (*Keys, error) {
 		return nil, err
 	}
 	publicKeyString := "ssh-ed25519" + " " + base64.StdEncoding.EncodeToString(publicKey.Marshal())
-	return &Keys{
-		Private: privateKeyString,
-		Public:  publicKeyString,
+
+	return &models.Ssh{
+		ID:         uuid.New(),
+		PublicKey:  publicKeyString,
+		PrivateKey: privateKeyString,
 	}, nil
 }
 
-func RunAgent(sshPrivateKey string) error {
+func (m *Manager) RunAddgentRunAgent() {
+
+}
+
+func (m *Manager) RunAgent(sshPrivateKey string) error {
 	sshAgent := exec.Command("ssh-agent", "-s")
 	var out bytes.Buffer
 	sshAgent.Stdout = &out
@@ -74,14 +88,14 @@ func RunAgent(sshPrivateKey string) error {
 	}
 
 	sshAdd := exec.Command("ssh-add", sshPrivateKey)
-	var out1 bytes.Buffer
-	var stderr1 bytes.Buffer
-	sshAdd.Stdout = &out1
-	sshAdd.Stderr = &stderr1
+	var sshOut bytes.Buffer
+	var stderr bytes.Buffer
+	sshAdd.Stdout = &sshOut
+	sshAdd.Stderr = &stderr
 	err = sshAdd.Run()
 	if err != nil {
 		fmt.Println("Executing: " + sshAdd.String())
-		fmt.Println(fmt.Sprint(err) + ": " + stderr1.String())
+		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
 		return err
 	}
 	return nil

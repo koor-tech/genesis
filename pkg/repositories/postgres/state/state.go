@@ -9,7 +9,6 @@ import (
 	"github.com/koor-tech/genesis/pkg/database"
 	"github.com/koor-tech/genesis/pkg/genesis"
 	"github.com/koor-tech/genesis/pkg/models"
-	"time"
 )
 
 type ClusterStateRepository struct {
@@ -25,8 +24,8 @@ func NewClusterStateRepository(db *database.DB) *ClusterStateRepository {
 func (r *ClusterStateRepository) Save(ctx context.Context, clusterState models.ClusterState) (*models.ClusterState, error) {
 	sqlStmt, args, _ := sq.StatementBuilder.PlaceholderFormat(sq.Dollar).
 		Insert(`cluster_state`).
-		Columns(`id`, `cluster_id`, `phase`, `time`).
-		Values(clusterState.ID, clusterState.ClusterID, clusterState.Phase, time.Now()).
+		Columns(`id`, `cluster_id`, `phase`).
+		Values(clusterState.ID, clusterState.ClusterID, clusterState.Phase).
 		ToSql()
 
 	_, err := r.db.Conn.ExecContext(ctx, sqlStmt, args...)
