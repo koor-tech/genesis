@@ -33,8 +33,7 @@ func NewClient() *Client {
 }
 
 var (
-	exchangeName = "cluster-tasks"
-	queueName    = "clusters"
+	queueName = "clusters"
 )
 
 func (c *Client) QueueDeclare() (amqp.Queue, error) {
@@ -54,7 +53,7 @@ func (c *Client) Publish(ctx context.Context, body []byte) {
 		Body:         body,
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	// This is not a mandatory delivery, so it will be dropped if there are no

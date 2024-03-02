@@ -1,6 +1,7 @@
 package files
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -34,7 +35,10 @@ func CopyDir(src, dst string) error {
 		return err
 	}
 
-	os.MkdirAll(dst, os.ModePerm)
+	err = os.MkdirAll(dst, os.ModePerm)
+	if err != nil {
+		return fmt.Errorf("unable to create dir %s, error %q", dst, err)
+	}
 
 	for _, source := range sources {
 		srcPath := filepath.Join(src, source.Name())
@@ -57,7 +61,12 @@ func CopyDir(src, dst string) error {
 
 func SaveInFile(name, content string, permissions int) error {
 	file, err := os.OpenFile(name, os.O_CREATE, os.FileMode(permissions))
-	defer file.Close()
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
+			log.Fatalf("unable to close file")
+		}
+	}(file)
 
 	if err != nil {
 		log.Fatalf("Failed to open public.key for writing: %s", err)

@@ -28,12 +28,9 @@ import (
 
 type Service struct {
 	genesisConfig *genesis.Config
-	cluster       *models.Cluster
 	subject       *observer.Subject
 	sshService    *sshSvc.Service
 
-	templatesSrc           string
-	templatesDst           string
 	logger                 *slog.Logger
 	queue                  *rabbitmq.Client
 	clusterStateRepository state.ClusterStateInterface

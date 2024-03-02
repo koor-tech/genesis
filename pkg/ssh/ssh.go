@@ -51,10 +51,6 @@ func (m *Manager) GenerateKey() (*models.Ssh, error) {
 	}, nil
 }
 
-func (m *Manager) RunAddgentRunAgent() {
-
-}
-
 func (m *Manager) RunAgent(sshPrivateKey string) error {
 	sshAgent := exec.Command("ssh-agent", "-s")
 	var out bytes.Buffer
