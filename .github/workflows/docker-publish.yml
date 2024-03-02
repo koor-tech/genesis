@@ -1,4 +1,4 @@
-name: Docker Publish Workflow
+name: Docker Publish
 
 on:
   push:
@@ -20,5 +20,5 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           push: true
-          tags: yourusername/yourrepository:latest
+          tags: koorinc/genesis:latest
 
