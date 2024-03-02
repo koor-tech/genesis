@@ -1,3 +1,6 @@
+![Code Review](https://github.com/koor-tech/genesis/actions/workflows/code-review.yml/badge.svg)
+
+
 # Koor-Tech Genesis
 
 

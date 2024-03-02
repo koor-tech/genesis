@@ -1,0 +1,7 @@
+run:
+  tests: false
+  skip-dirs:
+    - cmd/
+    - .github/
+    - charts/
+    - templates

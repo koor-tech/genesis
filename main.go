@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/koor-tech/genesis/gateway"
 	"github.com/spf13/viper"
+	"log"
 )
 
 const (
@@ -22,5 +23,7 @@ func main() {
 
 	port := fmt.Sprintf(":%s", portNumber)
 	r := gateway.SetupRouter()
-	r.Run(port) // listen and serve on 0.0.0.0:8080
+	if err := r.Run(port); err != nil {
+		log.Fatalf("Could not setup server on port %s: %v", port, err)
+	}
 }

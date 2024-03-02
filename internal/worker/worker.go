@@ -17,7 +17,10 @@ type Worker struct {
 
 func NewWorker() *Worker {
 	queue := rabbitmq.NewClient()
-	queue.QueueDeclare()
+	_, err := queue.QueueDeclare()
+	if err != nil {
+		log.Fatalf("unable to declare the queue")
+	}
 	return &Worker{
 		rabbitMQClient: queue,
 		db:             database.NewDB(),
