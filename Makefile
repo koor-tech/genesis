@@ -1,4 +1,5 @@
 IMAGE_PREFIX=koor-tech/genesis
+GOLANGCI_LINT_VERSION=
 
 TAG ?= $(shell git log -1 --pretty=%h)
 
@@ -22,7 +23,7 @@ install-tools: download
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.55.2
 
 lint:
-	@which golangci-lint > /dev/null || (cd tools && go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.55.2) && \
+	@which golangci-lint > /dev/null || make install-tools
 	golangci-lint run
 
 test:
