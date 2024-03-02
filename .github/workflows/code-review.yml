@@ -1,4 +1,4 @@
-name: Review Workflow
+name: Code Review
 
 on:
   pull_request:

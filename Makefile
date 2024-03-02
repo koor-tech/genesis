@@ -24,7 +24,7 @@ install-tools: download
 
 lint:
 	@which golangci-lint > /dev/null || make install-tools
-	golangci-lint run
+	golangci-lint run ./... --timeout=5m -v
 
 test:
 	go test ./...
