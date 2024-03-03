@@ -23,13 +23,9 @@ jobs:
         run: |
           make build-base
 
-      - name: Get short commit SHA
-        id: get_short_sha
-        run: echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
-
       - name: Build and push Docker image
         uses: docker/build-push-action@v3
         with:
           push: true
-          tags: koorinc/genesis:${{ env.SHORT_SHA }}
+          tags: koorinc/genesis:${{  github.ref_name }}
 
