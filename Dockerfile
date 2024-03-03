@@ -25,15 +25,14 @@ WORKDIR /home/koor/
 
 COPY --from=builder /usr/local/bin/kubectl /usr/local/bin/kubectl
 COPY --from=builder /usr/local/bin/terraform /usr/local/bin/terraform
+COPY --from=builder /usr/local/bin/kubeone /usr/local/bin/kubeone
 COPY --from=builder /app/main .
 
 
 USER root
 RUN mkdir -p /koor/clients/templates
 RUN chown koor:appgroup /home/koor/main
-RUN curl -sfL get.kubeone.io | sh
-RUN cp -r /home/koor/kubeone_1.7.2_linux_amd64/examples/terraform/* /koor/clients/templates/
-COPY templates/hetzner/variables.tf  /koor/clients/templates/hetzner/variables.tf
+COPY templates/hetzner /koor/clients/templates/hetzner
 RUN chown -R koor:appgroup /koor/clients /home/koor/main /usr/local/bin/terraform /usr/local/bin/kubectl
 USER koor
 

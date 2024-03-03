@@ -14,8 +14,9 @@ WORKDIR /home/koor/
 
 COPY --from=builder /usr/local/bin/kubectl /usr/local/bin/kubectl
 COPY --from=builder /usr/local/bin/terraform /usr/bin/terraform
+COPY --from=builder /usr/local/bin/kubeone /usr/local/bin/kubeone
 COPY --from=builder /app/worker .
-COPY templates/hetzner/variables.tf  /koor/clients/templates/hetzner/variables.tf
+COPY templates/hetzner /koor/clients/templates/hetzner
 RUN cat  /koor/clients/templates/hetzner/variables.tf
 
 ENTRYPOINT ["/home/koor/worker", "monitor"]
