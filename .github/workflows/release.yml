@@ -31,5 +31,5 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           push: true
-          tags: koorinc/genesis:{{ env.SHORT_SHA }}
+          tags: koorinc/genesis:${{ env.SHORT_SHA }}
 
