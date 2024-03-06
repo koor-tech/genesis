@@ -2,6 +2,8 @@ package handler
 
 import (
 	"context"
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/koor-tech/genesis/gateway/request"
@@ -9,7 +11,6 @@ import (
 	"github.com/koor-tech/genesis/pkg/database"
 	"github.com/koor-tech/genesis/pkg/models"
 	"github.com/koor-tech/genesis/pkg/rabbitmq"
-	"net/http"
 )
 
 var (
@@ -35,7 +36,7 @@ func CreateCluster(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err})
 		return
 	}
-	c.JSON(201, gin.H{"cluster": clusterState})
+	c.JSON(http.StatusCreated, gin.H{"cluster": clusterState})
 }
 
 func GetCluster(c *gin.Context) {
@@ -46,5 +47,15 @@ func GetCluster(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": err})
 		return
 	}
-	c.JSON(201, gin.H{"cluster": koorCluster})
+	c.JSON(http.StatusCreated, gin.H{"cluster": koorCluster})
+}
+
+func DeleteCluster(c *gin.Context) {
+	clusterID := uuid.MustParse(c.Param("id"))
+	clusterSvc := cluster.NewService(database.NewDB(), rabbitmq.NewClient())
+	if err := clusterSvc.DeleteCluster(context.Background(), clusterID); err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"cluster": nil})
 }

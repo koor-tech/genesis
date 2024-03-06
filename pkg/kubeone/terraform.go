@@ -4,16 +4,17 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
+	"os"
+	"os/exec"
+	"strings"
+
 	"github.com/hashicorp/terraform-exec/tfexec"
 	"github.com/koor-tech/genesis/pkg/files"
 	"github.com/koor-tech/genesis/pkg/models"
 	"github.com/koor-tech/genesis/pkg/providers/hetzner"
 	"github.com/koor-tech/genesis/pkg/types"
 	"gopkg.in/yaml.v3"
-	"log"
-	"os"
-	"os/exec"
-	"strings"
 )
 
 type Builder struct {
@@ -54,8 +55,8 @@ func (b *Builder) WriteTFVars() error {
 
 }
 
-func (b *Builder) WriteConfigFile() error {
-	clusterConfig := models.NewKubeOneConfig()
+func (b *Builder) WriteConfigFile(clusterName string) error {
+	clusterConfig := models.NewKubeOneConfig(clusterName)
 
 	configData, err := yaml.Marshal(clusterConfig)
 	if err != nil {

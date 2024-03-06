@@ -13,6 +13,7 @@ func SetupRouter() *gin.Engine {
 	{
 		v1.POST("/cluster", handler.CreateCluster)
 		v1.GET("/clusters/:id", handler.GetCluster)
+		v1.DELETE("/cluster/:id", handler.DeleteCluster)
 	}
 	return r
 }
