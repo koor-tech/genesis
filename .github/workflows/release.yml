@@ -24,7 +24,7 @@ jobs:
           make build-base
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v5
         with:
           push: true
           tags: koorinc/genesis:${{  github.ref_name }}
