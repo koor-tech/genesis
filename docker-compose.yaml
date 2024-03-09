@@ -3,12 +3,12 @@ version: '3.8'
 services:
 
   api:
-    image: koor-tech/genesis-api
+    image: koor-tech/genesis
     build:
       dockerfile: Dockerfile
       context: .
     ports:
-      - "8080:8080"
+      - "8000:8000"
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -32,10 +32,11 @@ services:
       - .env
 
   worker:
-    image: koor-tech/genesis-worker
+    image: koor-tech/genesis
     build:
-      dockerfile: ./cmd/worker/Dockerfile
+      dockerfile: Dockerfile
       context: .
+    entrypoint: ./worker monitor
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -59,15 +60,16 @@ services:
       - .env
 
   migrate:
-    image: koor-tech/genesis-migrate
+    image: koor-tech/genesis
     build:
-      dockerfile: ./cmd/migrations/Dockerfile
+      dockerfile: Dockerfile
       context: .
     depends_on:
       store:
         condition: service_healthy
     env_file:
       - .env
+    entrypoint: ./migrate migrate up
     environment:
       - RABBITMQ_DEFAULT_USER=user
       - RABBITMQ_DEFAULT_PASS=password
@@ -115,8 +117,6 @@ services:
       start_period: 80s
     ports:
       - "5433:5432"
-    volumes:
-      - ./postgres-data:/var/lib/postgresql/data
 
 volumes:
   rabbitmq-data:

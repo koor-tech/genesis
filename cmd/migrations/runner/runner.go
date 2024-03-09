@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	migrationsDir = "/genesis/bin/migrations"
+	migrationsDir = "/app/migrations"
 )
 
 func RunMigration(command string, db *sql.DB, args ...string) {
