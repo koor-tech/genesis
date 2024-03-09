@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	GenesisApiDefaultPort = "8080"
+	GenesisApiDefaultPort = "8000"
 )
 
 func init() {
@@ -16,7 +16,7 @@ func init() {
 }
 
 func main() {
-	portNumber := viper.GetString("GENESIS_PORT")
+	portNumber := viper.GetString("GENESIS_SERVER_PORT")
 	if len(portNumber) == 0 {
 		portNumber = GenesisApiDefaultPort
 	}
