@@ -23,6 +23,8 @@ type Builder struct {
 	Token  string
 }
 
+const terraformExec = "/usr/local/bin/terraform"
+
 func New(cluster *models.Cluster, dst string) *Builder {
 	cfg := hetzner.NewProvider()
 	cfg.ConfigureCredentials()
@@ -70,7 +72,7 @@ func (b *Builder) WriteConfigFile(clusterName string) error {
 }
 
 func (b *Builder) RunTerraform() error {
-	tf, err := tfexec.NewTerraform(b.dst, "/usr/bin/terraform")
+	tf, err := tfexec.NewTerraform(b.dst, terraformExec)
 	if err != nil {
 		log.Printf("error running NewTerraform: %s", err)
 		return err
