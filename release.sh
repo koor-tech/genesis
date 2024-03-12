@@ -12,11 +12,11 @@ else
     # If no previous tags are found, set a default initial version
     if [ -z "$last_tag" ]; then
         echo "No previous tags found. Setting initial version."
-        new_tag="0.0.1"
+        new_tag="v0.0.1"
     else
         echo "Last tag found: $last_tag"
         # Automatically increment the version
-        new_tag=$(echo $last_tag | awk -F. '{printf("%d.%d.%d", $1, $2, $3+1)}')
+        new_tag=$(echo $last_tag | awk -F. '{printf("v%d.%d.%d", $1, $2, $3+1)}')
     fi
 
     echo "New tag: $new_tag"

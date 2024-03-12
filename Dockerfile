@@ -17,6 +17,7 @@ RUN apk update && \
     apk upgrade && \
     apk add --no-cache curl && \
     apk add --no-cache sudo && \
+    apk add --no-cache openssh-client && \
     apk add --no-cache ca-certificates
 
 RUN addgroup -S appgroup && adduser -S koor -G appgroup
@@ -40,7 +41,7 @@ RUN mkdir -p /koor/clients/templates
 RUN chown koor:appgroup /home/koor/main
 COPY templates/hetzner /koor/clients/templates/hetzner
 COPY cmd/migrations/migrations /app/migrations
-RUN chown -R koor:appgroup /koor/clients /home/koor/main /usr/local/bin/terraform /usr/local/bin/kubectl
+RUN chown -R koor:appgroup /koor/clients /home/koor/main /usr/bin/terraform /usr/local/bin/kubectl
 USER koor
 
 EXPOSE 8000
