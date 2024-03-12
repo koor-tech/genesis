@@ -35,6 +35,10 @@ resource "hcloud_ssh_key" "kubeone" {
 resource "hcloud_network" "net" {
   name     = var.cluster_name
   ip_range = var.ip_range
+
+  labels = {
+    "kubeone_cluster_name" = var.cluster_name
+  }
 }
 
 resource "hcloud_firewall" "cluster" {

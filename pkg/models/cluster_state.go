@@ -2,6 +2,7 @@ package models
 
 import (
 	"encoding/json"
+
 	"github.com/google/uuid"
 )
 
@@ -22,6 +23,10 @@ const (
 	ClusterPhaseClusterReady     ClusterPhase = 100
 	ClusterPhaseInstallCephInit  ClusterPhase = 110
 	ClusterPhaseInstallCephDone  ClusterPhase = 120
+
+	// Make sure we have enough room for any other non-destructive cluster phases
+	ClusterPhaseDeletingCluster ClusterPhase = 900
+	ClusterPhaseClusterDeleted  ClusterPhase = 999
 )
 
 type ClusterState struct {

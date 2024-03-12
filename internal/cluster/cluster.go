@@ -3,7 +3,9 @@ package cluster
 import (
 	"context"
 	"fmt"
+
 	"github.com/google/uuid"
+	"github.com/hetznercloud/hcloud-go/v2/hcloud"
 	"github.com/koor-tech/genesis/internal/k8s"
 	sshSvc "github.com/koor-tech/genesis/internal/ssh"
 	"github.com/koor-tech/genesis/pkg/database"
@@ -19,6 +21,8 @@ import (
 	"github.com/koor-tech/genesis/pkg/repositories/postgres/providers"
 	sshRepo "github.com/koor-tech/genesis/pkg/repositories/postgres/ssh"
 	"github.com/koor-tech/genesis/pkg/repositories/postgres/state"
+	"github.com/koor-tech/genesis/pkg/utils"
+	"go.uber.org/multierr"
 
 	"log"
 	"log/slog"
@@ -143,7 +147,7 @@ func (s *Service) BuildCluster(ctx context.Context, customer *models.Customer, p
 		return cluster, err
 	}
 	s.logger.Info("Generating kubeone.yaml")
-	err = kubeOneSvc.WriteConfigFile()
+	err = kubeOneSvc.WriteConfigFile(cluster.ID.String())
 	if err != nil {
 		s.logger.Error("unable to create kubeone.yaml", "err", err)
 		return cluster, err
@@ -277,4 +281,79 @@ func (s *Service) ResumeCluster(ctx context.Context, clusterID uuid.UUID) error 
 	}
 	s.logger.Info("Ceph Cluster provisioned")
 	return nil
+}
+
+func (s *Service) DeleteCluster(ctx context.Context, clusterID uuid.UUID) error {
+	cloudProvider := hetzner.NewProvider()
+
+	clusterLabel := utils.Label("kubeone_cluster_name", clusterID.String())
+	listOpts := hcloud.ListOpts{
+		LabelSelector: clusterLabel,
+	}
+
+	errs := multierr.Combine()
+
+	// Servers
+	servers, err := cloudProvider.Client.Server.AllWithOpts(ctx, hcloud.ServerListOpts{
+		ListOpts: listOpts,
+	})
+	if err != nil {
+		errs = multierr.Append(errs, err)
+	}
+	for _, item := range servers {
+		_, _, err := cloudProvider.Client.Server.DeleteWithResult(ctx, item)
+		if err != nil {
+			errs = multierr.Append(errs, err)
+			continue
+		}
+	}
+
+	// Networks
+	networks, err := cloudProvider.Client.Network.AllWithOpts(ctx, hcloud.NetworkListOpts{
+		ListOpts: listOpts,
+	})
+	if err != nil {
+		errs = multierr.Append(errs, err)
+	}
+	for _, item := range networks {
+		_, err := cloudProvider.Client.Network.Delete(ctx, item)
+		if err != nil {
+			errs = multierr.Append(errs, err)
+			continue
+		}
+	}
+
+	// Load balancer
+	lbs, err := cloudProvider.Client.LoadBalancer.AllWithOpts(ctx, hcloud.LoadBalancerListOpts{
+		ListOpts: listOpts,
+	})
+	if err != nil {
+		errs = multierr.Append(errs, err)
+	}
+	for _, item := range lbs {
+		_, err := cloudProvider.Client.LoadBalancer.Delete(ctx, item)
+		if err != nil {
+			errs = multierr.Append(errs, err)
+			continue
+		}
+	}
+
+	// Firewalls
+	firewalls, err := cloudProvider.Client.Firewall.AllWithOpts(ctx, hcloud.FirewallListOpts{
+		ListOpts: listOpts,
+	})
+	if err != nil {
+		errs = multierr.Append(errs, err)
+	}
+	for _, item := range firewalls {
+		_, err := cloudProvider.Client.Firewall.Delete(ctx, item)
+		if err != nil {
+			errs = multierr.Append(errs, err)
+			continue
+		}
+	}
+
+	// Every time we create an additional resource, we need to add it here
+
+	return errs
 }

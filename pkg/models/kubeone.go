@@ -15,14 +15,16 @@ type CloudProvider struct {
 type KubeOneConfig struct {
 	ApiVersion    string        `yaml:"apiVersion"`
 	Kind          string        `yaml:"kind"`
+	Name          string        `yaml:"name"`
 	Versions      Versions      `yaml:"versions"`
 	CloudProvider CloudProvider `yaml:"cloudProvider"`
 }
 
-func NewKubeOneConfig() *KubeOneConfig {
+func NewKubeOneConfig(clusterName string) *KubeOneConfig {
 	return &KubeOneConfig{
 		ApiVersion: "kubeone.k8c.io/v1beta2",
 		Kind:       "KubeOneCluster",
+		Name:       clusterName,
 		Versions: Versions{
 			Kubernetes: "1.25.6",
 		},
