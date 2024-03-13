@@ -91,11 +91,26 @@ func (b *Builder) RunTerraform() error {
 	}
 	fmt.Println("========== terraform plan done ==========")
 	fmt.Println("==========  running... terraform init apply ==========")
-	err = tf.Apply(context.Background())
+	//err = tf.Apply(context.Background())
+
+	cmd1 := exec.Command("terraform", "apply", "--auto-approve=true")
+	cmd1.Dir = b.dst
+
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd1.Stdout = &out
+	cmd1.Stderr = &stderr
+	err = cmd1.Run()
 	if err != nil {
-		log.Fatalf("error running Apply: %s", err)
+		fmt.Println("Executing: " + cmd1.String())
+		return err
 	}
+
+	//if err != nil {
+	//	log.Fatalf("error running Apply: %s", err)
+	//}
 	fmt.Println("========== terraform apply done ==========")
+	fmt.Println(out.String())
 
 	fmt.Println("========== dump terraform file: terraform output -json -no-color > tf.json ==========")
 	cmd := exec.Command("terraform", "output", "-json", "-no-color")
