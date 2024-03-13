@@ -13,6 +13,7 @@ require (
 	github.com/mittwald/go-helm-client v0.12.9
 	github.com/pressly/goose/v3 v3.19.2
 	github.com/rabbitmq/amqp091-go v1.9.0
+	github.com/resend/resend-go/v2 v2.6.0
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/viper v1.18.2
 	go.uber.org/multierr v1.11.0
