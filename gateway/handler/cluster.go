@@ -59,3 +59,13 @@ func DeleteCluster(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"cluster": nil})
 }
+
+func ResumeCluster(c *gin.Context) {
+	clusterID := uuid.MustParse(c.Param("id"))
+	clusterSvc := cluster.NewService(database.NewDB(), rabbitmq.NewClient())
+	if err := clusterSvc.ResumeCluster(context.Background(), clusterID); err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"cluster": nil})
+}

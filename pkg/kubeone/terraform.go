@@ -92,7 +92,7 @@ func (b *Builder) RunTerraform() error {
 	fmt.Println("========== terraform plan done ==========")
 	fmt.Println("==========  running... terraform init apply ==========")
 	//err = tf.Apply(context.Background())
-
+	os.Setenv("TF_LOG", "INFO")
 	cmd1 := exec.Command("terraform", "apply", "--auto-approve=true")
 	cmd1.Dir = b.dst
 
@@ -103,6 +103,7 @@ func (b *Builder) RunTerraform() error {
 	err = cmd1.Run()
 	if err != nil {
 		fmt.Println("Executing: " + cmd1.String())
+		fmt.Println("Error: " + err.Error())
 		return err
 	}
 
