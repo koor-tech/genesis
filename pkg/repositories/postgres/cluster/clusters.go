@@ -4,10 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+
 	sq "github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
 	"github.com/koor-tech/genesis/pkg/database"
-	"github.com/koor-tech/genesis/pkg/genesis"
 	"github.com/koor-tech/genesis/pkg/models"
 )
 
@@ -59,7 +59,7 @@ func (r *ClusterRepository) QueryByID(ctx context.Context, clusterID uuid.UUID) 
 	sqlStmt, args, _ := builder.Where(`c.id = $1`, clusterID).ToSql()
 	if err := r.db.Conn.GetContext(ctx, &c, sqlStmt, args...); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, genesis.ErrClusterNotFound
+			return nil, models.ErrClusterNotFound
 		}
 		return nil, err
 	}

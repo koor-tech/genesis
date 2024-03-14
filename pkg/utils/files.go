@@ -1,9 +1,8 @@
-package files
+package utils
 
 import (
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 )
@@ -61,19 +60,14 @@ func CopyDir(src, dst string) error {
 
 func SaveInFile(name, content string, permissions int) error {
 	file, err := os.OpenFile(name, os.O_CREATE, os.FileMode(permissions))
-	defer func(file *os.File) {
-		err := file.Close()
-		if err != nil {
-			log.Fatalf("unable to close file")
-		}
-	}(file)
-
 	if err != nil {
-		log.Fatalf("Failed to open public.key for writing: %s", err)
+		return fmt.Errorf("failed to open file for writing. %w", err)
 	}
-	err = os.WriteFile(name, []byte(content), os.FileMode(permissions))
-	if err != nil {
+	defer file.Close()
+
+	if err := os.WriteFile(name, []byte(content), os.FileMode(permissions)); err != nil {
 		return err
 	}
+
 	return nil
 }

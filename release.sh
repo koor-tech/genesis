@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Check if a tag was passed as an argument
 if [ -n "$1" ]; then
@@ -7,7 +7,7 @@ if [ -n "$1" ]; then
     echo "Tag provided: $new_tag"
 else
     # Fetch the latest tag from Git
-    last_tag=$(git describe --tags `git rev-list --tags --max-count=1`)
+    last_tag=$(git describe --tags "$(git rev-list --tags --max-count=1)")
 
     # If no previous tags are found, set a default initial version
     if [ -z "$last_tag" ]; then
@@ -16,7 +16,7 @@ else
     else
         echo "Last tag found: $last_tag"
         # Automatically increment the version
-        new_tag=$(echo $last_tag | awk -F. '{printf("v%d.%d.%d", $1, $2, $3+1)}')
+        new_tag=$(echo "$last_tag" | awk -F. '{printf("v%d.%d.%d", $1, $2, $3+1)}')
     fi
 
     echo "New tag: $new_tag"
@@ -32,9 +32,9 @@ else
 fi
 
 # Create the new tag
-git tag $new_tag
+git tag "$new_tag"
 
 # Push the new tag
-git push origin $new_tag
+git push origin "$new_tag"
 
 echo "Tag $new_tag created and pushed successfully."

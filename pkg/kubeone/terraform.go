@@ -4,35 +4,39 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/exec"
 	"strings"
 
 	"github.com/hashicorp/terraform-exec/tfexec"
-	"github.com/koor-tech/genesis/pkg/files"
 	"github.com/koor-tech/genesis/pkg/models"
 	"github.com/koor-tech/genesis/pkg/providers/hetzner"
-	"github.com/koor-tech/genesis/pkg/types"
+	"github.com/koor-tech/genesis/pkg/utils"
+	types "github.com/koor-tech/genesis/pkg/utils/types"
 	"gopkg.in/yaml.v3"
 )
 
 type Builder struct {
-	config *models.TerraformConfig
-	dst    string
-	Token  string
+	logger     *slog.Logger
+	config     *models.TerraformConfig
+	dst        string
+	CloudToken string
 }
 
 const terraformExec = "/usr/local/bin/terraform"
 
-func New(cluster *models.Cluster, dst string) *Builder {
-	cfg := hetzner.NewProvider()
-	cfg.ConfigureCredentials()
-	return &Builder{
-		Token:  cfg.Token,
-		dst:    dst,
-		config: models.NewTerraformConfig(cluster, dst),
+func New(logger *slog.Logger, cluster *models.Cluster, dst string, cloudProvider *hetzner.Provider) (*Builder, error) {
+	if err := cloudProvider.ConfigureCredentials(); err != nil {
+		return nil, err
 	}
+
+	return &Builder{
+		logger:     logger,
+		CloudToken: cloudProvider.Token,
+		dst:        dst,
+		config:     models.NewTerraformConfig(cluster, dst),
+	}, nil
 }
 
 func (b *Builder) WriteTFVars() error {
@@ -49,7 +53,7 @@ func (b *Builder) WriteTFVars() error {
 	}
 
 	tfVars := fmt.Sprintf("%s/%s", b.dst, "terraform.tfvars")
-	err = files.SaveInFile(tfVars, strings.Join(tfConfigFile, "\n"), 0600)
+	err = utils.SaveInFile(tfVars, strings.Join(tfConfigFile, "\n"), 0600)
 	if err != nil {
 		return err
 	}
@@ -64,7 +68,7 @@ func (b *Builder) WriteConfigFile(clusterName string) error {
 	if err != nil {
 		return err
 	}
-	err = files.SaveInFile(b.dst+"/kubeone.yaml", string(configData), 0600)
+	err = utils.SaveInFile(b.dst+"/kubeone.yaml", string(configData), 0600)
 	if err != nil {
 		return err
 	}
@@ -74,28 +78,28 @@ func (b *Builder) WriteConfigFile(clusterName string) error {
 func (b *Builder) RunTerraform(ctx context.Context) error {
 	tf, err := tfexec.NewTerraform(b.dst, terraformExec)
 	if err != nil {
-		log.Printf("error running NewTerraform: %s", err)
-		return err
+		return fmt.Errorf("error running NewTerraform. %w", err)
 	}
 
 	err = tf.Init(ctx, tfexec.Upgrade(true))
 	if err != nil {
-		log.Fatalf("error running Init: %s", err)
+		return fmt.Errorf("error running init. %w", err)
 	}
 	fmt.Println("==========  terraform init  done ==========")
 	fmt.Println("==========  running... terraform plan  ==========")
 	_, err = tf.Plan(ctx)
 	if err != nil {
-		log.Printf("error running Plan: %s", err)
-		return err
+		return fmt.Errorf("error running Plan: %w", err)
 	}
 	fmt.Println("========== terraform plan done ==========")
 	fmt.Println("==========  running... terraform apply ==========")
 	err = tf.Apply(ctx)
 
 	if err != nil {
-		log.Fatalf("error running Apply: %s", err)
+		b.logger.Error("error running apply", "err", err)
+		return err
 	}
+
 	fmt.Println("========== terraform apply done ==========")
 
 	fmt.Println("========== dump terraform file: terraform output -json -no-color > tf.json ==========")
@@ -104,7 +108,7 @@ func (b *Builder) RunTerraform(ctx context.Context) error {
 
 	outfile, err := os.Create(b.dst + "/tf.json")
 	if err != nil {
-		panic(err)
+		return err
 	}
 	defer outfile.Close()
 
@@ -113,7 +117,7 @@ func (b *Builder) RunTerraform(ctx context.Context) error {
 
 	err = cmd.Run()
 	if err != nil {
-		log.Println(err)
+		b.logger.Error("failed to run terraform", "err", err)
 		return err
 	}
 

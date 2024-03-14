@@ -1,4 +1,4 @@
-FROM golang:alpine as genesis-base-builder
+FROM docker.io/library/golang:1.21-alpine3.19 as genesis-base-builder
 
 ENV KUBEONE_VERSION=1.7.2
 ENV DOCKER_OS_NAME=linux_amd64

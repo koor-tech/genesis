@@ -3,57 +3,92 @@ package worker
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"log/slog"
+
 	"github.com/koor-tech/genesis/internal/cluster"
 	"github.com/koor-tech/genesis/pkg/database"
 	"github.com/koor-tech/genesis/pkg/models"
+	"github.com/koor-tech/genesis/pkg/notification"
 	"github.com/koor-tech/genesis/pkg/rabbitmq"
-	"log"
+	amqp "github.com/rabbitmq/amqp091-go"
+	"go.uber.org/fx"
 )
 
 type Worker struct {
-	rabbitMQClient *rabbitmq.Client
-	db             *database.DB
+	logger   *slog.Logger
+	db       *database.DB
+	notifier notification.Notifier
+
+	clusterSvc *cluster.Service
 }
 
-func NewWorker() *Worker {
-	queue := rabbitmq.NewClient()
-	_, err := queue.QueueDeclare()
-	if err != nil {
-		log.Fatalf("unable to declare the queue")
-	}
-	return &Worker{
-		rabbitMQClient: queue,
-		db:             database.NewDB(),
-	}
+type Params struct {
+	fx.In
+
+	LC fx.Lifecycle
+
+	Logger     *slog.Logger
+	RabbitMQ   *rabbitmq.Client
+	DB         *database.DB
+	Notifier   notification.Notifier
+	ClusterSvc *cluster.Service
 }
 
-func (w *Worker) ResumeCluster() {
-	msgs := w.rabbitMQClient.Consume()
+func NewWorker(p Params) (*Worker, error) {
+	w := &Worker{
+		logger:     p.Logger,
+		db:         p.DB,
+		notifier:   p.Notifier,
+		clusterSvc: p.ClusterSvc,
+	}
+
+	p.LC.Append(fx.StartHook(func(ctx context.Context) error {
+		_, err := p.RabbitMQ.QueueDeclare()
+		if err != nil {
+			return fmt.Errorf("unable to declare the queue. %w", err)
+		}
+
+		msgs, err := p.RabbitMQ.Consume()
+		if err != nil {
+			return err
+		}
+
+		go w.ResumeCluster(msgs)
+
+		return nil
+	}))
+
+	return w, nil
+}
+
+func (w *Worker) ResumeCluster(ch <-chan amqp.Delivery) error {
 	forever := make(chan bool)
 
 	go func() {
-		for d := range msgs {
-			log.Printf("Received a message: %s", d.Body)
+		for d := range ch {
+			w.logger.Info("received a message", "body", d.Body)
 			w.processMessage(d.Body)
 		}
 	}()
 
-	log.Printf(" [*] Waiting for messages. To exit press CTRL+C")
+	w.logger.Info("[*] Waiting for messages. To exit press CTRL+C")
 	<-forever
+
+	return nil
 }
 
 func (w *Worker) processMessage(body []byte) {
 	var state models.ClusterState
 	err := json.Unmarshal(body, &state)
 	if err != nil {
-		log.Printf("Error parsing JSON: %s", err)
+		w.logger.Error("error parsing JSON", "err", err)
 		return
 	}
 
-	k := cluster.NewService(w.db, w.rabbitMQClient)
-	err = k.ResumeCluster(context.Background(), state.ClusterID)
+	err = w.clusterSvc.ResumeCluster(context.Background(), state.ClusterID)
 	if err != nil {
-		log.Printf("Error running ResumeCluster: %s", err)
+		w.logger.Error("error running ResumeCluster", "err", err)
 		return
 	}
 }

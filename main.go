@@ -2,28 +2,14 @@ package main
 
 import (
 	"fmt"
-	"github.com/koor-tech/genesis/gateway"
-	"github.com/spf13/viper"
-	"log"
-)
+	"os"
 
-const (
-	GenesisApiDefaultPort = "8000"
+	"github.com/koor-tech/genesis/cmd"
 )
-
-func init() {
-	viper.AutomaticEnv()
-}
 
 func main() {
-	portNumber := viper.GetString("GENESIS_SERVER_PORT")
-	if len(portNumber) == 0 {
-		portNumber = GenesisApiDefaultPort
-	}
-
-	port := fmt.Sprintf(":%s", portNumber)
-	r := gateway.SetupRouter()
-	if err := r.Run(port); err != nil {
-		log.Fatalf("Could not setup server on port %s: %v", port, err)
+	if err := cmd.RootCmd.Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
 }

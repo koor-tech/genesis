@@ -7,23 +7,23 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/koor-tech/genesis/pkg/models"
-	"golang.org/x/crypto/ssh"
-	"log"
 	"log/slog"
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/google/uuid"
+	"github.com/koor-tech/genesis/pkg/models"
+	"golang.org/x/crypto/ssh"
 )
 
 type Manager struct {
 	logger *slog.Logger
 }
 
-func NewManager() *Manager {
+func NewManager(logger *slog.Logger) *Manager {
 	return &Manager{
-		logger: slog.New(slog.NewTextHandler(os.Stdout, nil)),
+		logger: logger,
 	}
 }
 
@@ -32,10 +32,12 @@ func (m *Manager) GenerateKey() (*models.Ssh, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	p, err := ssh.MarshalPrivateKey(crypto.PrivateKey(priv), "")
 	if err != nil {
 		return nil, err
 	}
+
 	privateKeyPem := pem.EncodeToMemory(p)
 	privateKeyString := string(privateKeyPem)
 	publicKey, err := ssh.NewPublicKey(pub)
@@ -55,12 +57,12 @@ func (m *Manager) RunAgent(sshPrivateKey string) error {
 	sshAgent := exec.Command("ssh-agent", "-s")
 	var out bytes.Buffer
 	sshAgent.Stdout = &out
-	err := sshAgent.Run()
 
-	if err != nil {
-		log.Println(err)
+	if err := sshAgent.Run(); err != nil {
+		m.logger.Error("error running ssh agent", "err", err)
 		return err
 	}
+
 	lines := strings.Split(out.String(), "\n")
 	for _, line := range lines {
 		if strings.Contains(line, "SSH_AUTH_SOCK") {
@@ -88,8 +90,7 @@ func (m *Manager) RunAgent(sshPrivateKey string) error {
 	var stderr bytes.Buffer
 	sshAdd.Stdout = &sshOut
 	sshAdd.Stderr = &stderr
-	err = sshAdd.Run()
-	if err != nil {
+	if err := sshAdd.Run(); err != nil {
 		fmt.Println("Executing: " + sshAdd.String())
 		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
 		return err

@@ -1,4 +1,4 @@
-package genesis
+package models
 
 import "errors"
 

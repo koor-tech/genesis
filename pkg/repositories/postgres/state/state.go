@@ -4,10 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+
 	sq "github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
 	"github.com/koor-tech/genesis/pkg/database"
-	"github.com/koor-tech/genesis/pkg/genesis"
 	"github.com/koor-tech/genesis/pkg/models"
 )
 
@@ -48,7 +48,7 @@ func (r *ClusterStateRepository) QueryByID(ctx context.Context, clusterID uuid.U
 	sqlStmt, args, _ := builder.Where(`cs.id = $1`, clusterID).ToSql()
 	if err := r.db.Conn.GetContext(ctx, &cs, sqlStmt, args...); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, genesis.ErrClusterNotFound
+			return nil, models.ErrClusterNotFound
 		}
 		return nil, err
 	}
@@ -70,7 +70,7 @@ func (r *ClusterStateRepository) Update(ctx context.Context, params models.Clust
 	_, err = r.db.Conn.ExecContext(ctx, updateStmt, args...)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return genesis.ErrClusterStateNotFound
+			return models.ErrClusterStateNotFound
 		}
 		return err
 	}

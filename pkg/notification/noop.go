@@ -6,6 +6,10 @@ type Noop struct {
 	Notifier
 }
 
+func NewNoop() Notifier {
+	return &Noop{}
+}
+
 func (n *Noop) Send(customer models.Customer) error {
 	return nil
 }

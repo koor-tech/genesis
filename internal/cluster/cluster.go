@@ -8,11 +8,11 @@ import (
 	"github.com/hetznercloud/hcloud-go/v2/hcloud"
 	"github.com/koor-tech/genesis/internal/k8s"
 	sshSvc "github.com/koor-tech/genesis/internal/ssh"
+	"github.com/koor-tech/genesis/pkg/config"
 	"github.com/koor-tech/genesis/pkg/database"
-	"github.com/koor-tech/genesis/pkg/files"
-	"github.com/koor-tech/genesis/pkg/genesis"
 	"github.com/koor-tech/genesis/pkg/kubeone"
 	"github.com/koor-tech/genesis/pkg/models"
+	"github.com/koor-tech/genesis/pkg/notification"
 	"github.com/koor-tech/genesis/pkg/observer"
 	"github.com/koor-tech/genesis/pkg/providers/hetzner"
 	"github.com/koor-tech/genesis/pkg/rabbitmq"
@@ -22,50 +22,74 @@ import (
 	sshRepo "github.com/koor-tech/genesis/pkg/repositories/postgres/ssh"
 	"github.com/koor-tech/genesis/pkg/repositories/postgres/state"
 	"github.com/koor-tech/genesis/pkg/utils"
+	"go.uber.org/fx"
 	"go.uber.org/multierr"
 
-	"log"
 	"log/slog"
-	"os"
 	"time"
 )
 
-type Service struct {
-	genesisConfig *genesis.Config
-	subject       *observer.Subject
-	sshService    *sshSvc.Service
+type Params struct {
+	fx.In
 
-	logger                 *slog.Logger
+	LC fx.Lifecycle
+
+	Logger       *slog.Logger
+	Config       *config.Config
+	DB           *database.DB
+	RabbitClient *rabbitmq.Client
+	Notifier     notification.Notifier
+	Provider     *hetzner.Provider
+}
+
+type Service struct {
+	logger *slog.Logger
+	dirCfg config.Directories
+
+	cloudProvider *hetzner.Provider
+
+	subject    *observer.Subject
+	sshService *sshSvc.Service
+
 	queue                  *rabbitmq.Client
 	clusterStateRepository state.ClusterStateInterface
 	customerRepository     customers.CustomerInterface
 	clustersRepository     clusters.ClustersInterface
 	providerRepository     providers.ProvidersInterface
 	sshRepository          sshRepo.SshInterface
+	notifier               notification.Notifier
 }
 
-func NewService(db *database.DB, rabbitClient *rabbitmq.Client) *Service {
-	_, err := rabbitClient.QueueDeclare()
-	if err != nil {
-		log.Fatal("unable to declare queue", "error", err)
-	}
+func NewService(p Params) (*Service, error) {
+	kc := &Service{
+		logger:        p.Logger,
+		dirCfg:        p.Config.Directories,
+		cloudProvider: p.Provider,
 
-	kc := Service{
-		sshService:             sshSvc.NewService(db),
+		sshService:             sshSvc.NewService(p.Logger, p.DB),
 		subject:                observer.NewSubject(),
-		logger:                 slog.New(slog.NewTextHandler(os.Stdout, nil)),
-		queue:                  rabbitClient,
-		genesisConfig:          genesis.NewConfig(),
-		clusterStateRepository: state.NewClusterStateRepository(db),
-		customerRepository:     customers.NewCustomersRepository(db),
-		providerRepository:     providers.NewProviderRepository(db),
-		clustersRepository:     clusters.NewClusterRepository(db),
-		sshRepository:          sshRepo.NewSshRepository(db),
+		queue:                  p.RabbitClient,
+		clusterStateRepository: state.NewClusterStateRepository(p.DB),
+		customerRepository:     customers.NewCustomersRepository(p.DB),
+		providerRepository:     providers.NewProviderRepository(p.DB),
+		clustersRepository:     clusters.NewClusterRepository(p.DB),
+		sshRepository:          sshRepo.NewSshRepository(p.DB),
+		notifier:               p.Notifier,
 	}
 
-	// listen the changes in the process/or cluster?
+	p.LC.Append(fx.StartHook(func(ctx context.Context) error {
+		_, err := p.RabbitClient.QueueDeclare()
+		if err != nil {
+			return fmt.Errorf("unable to declare queue. %w", err)
+		}
+
+		return nil
+	}))
+
+	// Listen the changes in the process/or cluster?
 	kc.Listen(context.Background())
-	return &kc
+
+	return kc, nil
 }
 
 func (s *Service) GetCluster(ctx context.Context, ID uuid.UUID) (*models.Cluster, error) {
@@ -74,15 +98,16 @@ func (s *Service) GetCluster(ctx context.Context, ID uuid.UUID) (*models.Cluster
 		s.logger.Error("unable to get cluster", "err", err, "id", ID)
 		return nil, err
 	}
+
 	return c, nil
 }
 
 func (s *Service) getProviderName(provider *models.Provider) string {
-	return fmt.Sprintf("%s/%s", s.genesisConfig.TemplatesDir(), provider.Name)
+	return fmt.Sprintf("%s/%s", s.dirCfg.TemplatesDir(), provider.Name)
 }
 
 func (s *Service) getCustomerDir(customer *models.Customer) string {
-	return fmt.Sprintf("%s/%s", s.genesisConfig.ClientsDir(), customer.ID)
+	return fmt.Sprintf("%s/%s", s.dirCfg.ClientsDir(), customer.ID)
 }
 
 func (s *Service) BuildCluster(ctx context.Context, customer *models.Customer, providerID uuid.UUID) (*models.Cluster, error) {
@@ -132,14 +157,19 @@ func (s *Service) BuildCluster(ctx context.Context, customer *models.Customer, p
 	}
 
 	// TODO we need to address what will happen the the customer_dir is not empty
-	err = files.CopyDir(providerDir, customerDir)
+	err = utils.CopyDir(providerDir, customerDir)
 	if err != nil {
 		s.logger.Error("unable to copy template files", "err", err)
 		return cluster, err
 	}
 
 	s.logger.Info("running kubeone")
-	kubeOneSvc := kubeone.New(cluster, customerDir)
+	kubeOneSvc, err := kubeone.New(s.logger, cluster,
+		customerDir, s.cloudProvider)
+	if err != nil {
+		return cluster, err
+	}
+
 	s.logger.Info("Creating terraform.tfvars")
 	err = kubeOneSvc.WriteTFVars()
 	if err != nil {
@@ -173,22 +203,27 @@ func (s *Service) BuildCluster(ctx context.Context, customer *models.Customer, p
 func (s *Service) ResumeCluster(ctx context.Context, clusterID uuid.UUID) error {
 	s.logger.Info("resume cluster", "id", clusterID)
 
-	c, err := s.GetCluster(ctx, clusterID)
+	cluster, err := s.GetCluster(ctx, clusterID)
 	if err != nil {
 		s.logger.Error("unable to get the cluster ", "err", err, "clusterID", clusterID)
 	}
 
-	kubeOneSvc := kubeone.New(c, s.getCustomerDir(&c.Customer))
-	c.ClusterState.Phase = models.ClusterPhaseSshInit
-	clusterState := c.ClusterState
+	kubeOneSvc, err := kubeone.New(s.logger, cluster,
+		s.getCustomerDir(&cluster.Customer), s.cloudProvider)
+	if err != nil {
+		return err
+	}
+
+	cluster.ClusterState.Phase = models.ClusterPhaseSshInit
+	clusterState := cluster.ClusterState
 
 	err = s.clusterStateRepository.Update(ctx, clusterState)
 	if err != nil {
-		s.logger.Error("unable to save the state of the cluster ", "err ", err, "clusterID", c.ID)
+		s.logger.Error("unable to save the state of the cluster ", "err ", err, "clusterID", cluster.ID)
 	}
 
 	s.logger.Info("running ssh agent")
-	_, err = s.sshService.BuildAndRunSSH(ctx, clusterID, s.getCustomerDir(&c.Customer))
+	_, err = s.sshService.BuildAndRunSSH(ctx, clusterID, s.getCustomerDir(&cluster.Customer))
 	if err != nil {
 		s.logger.Error("unable to run ssh agent", "err", err)
 		return err
@@ -196,13 +231,13 @@ func (s *Service) ResumeCluster(ctx context.Context, clusterID uuid.UUID) error 
 	clusterState.Phase = models.ClusterPhaseSshDone
 	err = s.clusterStateRepository.Update(ctx, clusterState)
 	if err != nil {
-		s.logger.Error("unable to save the state of the cluster ", "err ", err, "clusterID", c.ID)
+		s.logger.Error("unable to save the state of the cluster ", "err ", err, "clusterID", cluster.ID)
 	}
 
 	clusterState.Phase = models.ClusterPhaseTerraformInit
 	err = s.clusterStateRepository.Update(ctx, clusterState)
 	if err != nil {
-		s.logger.Error("unable to save the state of the cluster ", "err ", err, "clusterID", c.ID)
+		s.logger.Error("unable to save the state of the cluster ", "err ", err, "clusterID", cluster.ID)
 	}
 	s.logger.Info("running terraform")
 	err = kubeOneSvc.RunTerraform(ctx)
@@ -214,12 +249,12 @@ func (s *Service) ResumeCluster(ctx context.Context, clusterID uuid.UUID) error 
 	clusterState.Phase = models.ClusterPhaseTerraformDone
 	err = s.clusterStateRepository.Update(ctx, clusterState)
 	if err != nil {
-		s.logger.Error("unable to save the state of the cluster ", "err ", err, "clusterID", c.ID)
+		s.logger.Error("unable to save the state of the cluster ", "err ", err, "clusterID", cluster.ID)
 	}
 	clusterState.Phase = models.ClusterPhaseKubeOneInit
 	err = s.clusterStateRepository.Update(ctx, clusterState)
 	if err != nil {
-		s.logger.Error("unable to save the state of the cluster ", "err ", err, "clusterID", c.ID)
+		s.logger.Error("unable to save the state of the cluster ", "err ", err, "clusterID", cluster.ID)
 	}
 	s.logger.Info("running kubeone")
 	_, err = kubeOneSvc.RunKubeOne()
@@ -230,7 +265,7 @@ func (s *Service) ResumeCluster(ctx context.Context, clusterID uuid.UUID) error 
 	clusterState.Phase = models.ClusterPhaseKubeOneDone
 	err = s.clusterStateRepository.Update(ctx, clusterState)
 	if err != nil {
-		s.logger.Error("unable to save the state of the cluster ", "err ", err, "clusterID", c.ID)
+		s.logger.Error("unable to save the state of the cluster ", "err ", err, "clusterID", cluster.ID)
 	}
 
 	s.logger.Info("Awaiting to get ready the servers 20.. seconds")
@@ -238,16 +273,16 @@ func (s *Service) ResumeCluster(ctx context.Context, clusterID uuid.UUID) error 
 	clusterState.Phase = models.ClusterPhaseProviderConfInit
 	err = s.clusterStateRepository.Update(ctx, clusterState)
 	if err != nil {
-		s.logger.Error("unable to save the state of the cluster ", "err ", err, "clusterID", c.ID)
+		s.logger.Error("unable to save the state of the cluster ", "err ", err, "clusterID", cluster.ID)
 	}
-	cloudProvider := hetzner.NewProvider()
-	servers, err := cloudProvider.GetServerByLabels(ctx, c.Customer.Name)
+
+	servers, err := s.cloudProvider.GetServerByLabels(ctx, cluster.Customer.Name)
 	if err != nil {
 		s.logger.Error("unable to get server error:", "err", err)
 		return err
 	}
 	s.logger.Info("attaching volumes")
-	err = cloudProvider.AttacheVolumesToServers(ctx, c.Customer.Name, servers)
+	err = s.cloudProvider.AttacheVolumesToServers(ctx, cluster.Customer.Name, servers)
 	if err != nil {
 		s.logger.Error("unable to get server error:", "err", err)
 		return err
@@ -256,36 +291,40 @@ func (s *Service) ResumeCluster(ctx context.Context, clusterID uuid.UUID) error 
 	clusterState.Phase = models.ClusterPhaseProviderConfDone
 	err = s.clusterStateRepository.Update(ctx, clusterState)
 	if err != nil {
-		s.logger.Error("unable to save the state of the cluster ", "err ", err, "clusterID", c.ID)
+		s.logger.Error("unable to save the state of the cluster ", "err ", err, "clusterID", cluster.ID)
 	}
 
 	clusterState.Phase = models.ClusterPhaseClusterReady
 	err = s.clusterStateRepository.Update(ctx, clusterState)
 	if err != nil {
-		s.logger.Error("unable to save the state of the cluster ", "err ", err, "clusterID", c.ID)
+		s.logger.Error("unable to save the state of the cluster ", "err ", err, "clusterID", cluster.ID)
 	}
 	//
 	s.logger.Info("installing rook-ceph")
-	kubeConfigName := fmt.Sprintf("koor-client-%s-kubeconfig", c.Customer.Name)
+	kubeConfigName := fmt.Sprintf("koor-client-%s-kubeconfig", cluster.Customer.Name)
 	clusterState.Phase = models.ClusterPhaseInstallCephInit
 	err = s.clusterStateRepository.Update(ctx, clusterState)
 	if err != nil {
-		s.logger.Error("unable to save the state of the cluster ", "err ", err, "clusterID", c.ID)
+		s.logger.Error("unable to save the state of the cluster ", "err ", err, "clusterID", cluster.ID)
 	}
-	k8sCluster := k8s.New(s.getCustomerDir(&c.Customer)+"/"+kubeConfigName, s.genesisConfig.ChartsDir())
+	k8sCluster := k8s.New(s.getCustomerDir(&cluster.Customer)+"/"+kubeConfigName, s.dirCfg.ChartsDir())
 	k8sCluster.InstallCharts()
 	clusterState.Phase = models.ClusterPhaseInstallCephDone
 	err = s.clusterStateRepository.Update(ctx, clusterState)
 	if err != nil {
-		s.logger.Error("unable to save the state of the cluster ", "err ", err, "clusterID", c.ID)
+		s.logger.Error("unable to save the state of the cluster ", "err ", err, "clusterID", cluster.ID)
 	}
+
 	s.logger.Info("Ceph Cluster provisioned")
+
+	if err := s.notifier.Send(cluster.Customer); err != nil {
+		s.logger.Error("failed to notify customer", "err", err)
+	}
+
 	return nil
 }
 
 func (s *Service) DeleteCluster(ctx context.Context, clusterID uuid.UUID) error {
-	cloudProvider := hetzner.NewProvider()
-
 	clusterLabel := utils.Label("kubeone_cluster_name", clusterID.String())
 	listOpts := hcloud.ListOpts{
 		LabelSelector: clusterLabel,
@@ -294,14 +333,14 @@ func (s *Service) DeleteCluster(ctx context.Context, clusterID uuid.UUID) error 
 	errs := multierr.Combine()
 
 	// Servers
-	servers, err := cloudProvider.Client.Server.AllWithOpts(ctx, hcloud.ServerListOpts{
+	servers, err := s.cloudProvider.Client.Server.AllWithOpts(ctx, hcloud.ServerListOpts{
 		ListOpts: listOpts,
 	})
 	if err != nil {
 		errs = multierr.Append(errs, err)
 	}
 	for _, item := range servers {
-		_, _, err := cloudProvider.Client.Server.DeleteWithResult(ctx, item)
+		_, _, err := s.cloudProvider.Client.Server.DeleteWithResult(ctx, item)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue
@@ -309,14 +348,14 @@ func (s *Service) DeleteCluster(ctx context.Context, clusterID uuid.UUID) error 
 	}
 
 	// Networks
-	networks, err := cloudProvider.Client.Network.AllWithOpts(ctx, hcloud.NetworkListOpts{
+	networks, err := s.cloudProvider.Client.Network.AllWithOpts(ctx, hcloud.NetworkListOpts{
 		ListOpts: listOpts,
 	})
 	if err != nil {
 		errs = multierr.Append(errs, err)
 	}
 	for _, item := range networks {
-		_, err := cloudProvider.Client.Network.Delete(ctx, item)
+		_, err := s.cloudProvider.Client.Network.Delete(ctx, item)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue
@@ -324,14 +363,14 @@ func (s *Service) DeleteCluster(ctx context.Context, clusterID uuid.UUID) error 
 	}
 
 	// Load balancer
-	lbs, err := cloudProvider.Client.LoadBalancer.AllWithOpts(ctx, hcloud.LoadBalancerListOpts{
+	lbs, err := s.cloudProvider.Client.LoadBalancer.AllWithOpts(ctx, hcloud.LoadBalancerListOpts{
 		ListOpts: listOpts,
 	})
 	if err != nil {
 		errs = multierr.Append(errs, err)
 	}
 	for _, item := range lbs {
-		_, err := cloudProvider.Client.LoadBalancer.Delete(ctx, item)
+		_, err := s.cloudProvider.Client.LoadBalancer.Delete(ctx, item)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue
@@ -339,14 +378,29 @@ func (s *Service) DeleteCluster(ctx context.Context, clusterID uuid.UUID) error 
 	}
 
 	// Firewalls
-	firewalls, err := cloudProvider.Client.Firewall.AllWithOpts(ctx, hcloud.FirewallListOpts{
+	firewalls, err := s.cloudProvider.Client.Firewall.AllWithOpts(ctx, hcloud.FirewallListOpts{
 		ListOpts: listOpts,
 	})
 	if err != nil {
 		errs = multierr.Append(errs, err)
 	}
 	for _, item := range firewalls {
-		_, err := cloudProvider.Client.Firewall.Delete(ctx, item)
+		_, err := s.cloudProvider.Client.Firewall.Delete(ctx, item)
+		if err != nil {
+			errs = multierr.Append(errs, err)
+			continue
+		}
+	}
+
+	// Volumes
+	volumes, err := s.cloudProvider.Client.Volume.AllWithOpts(ctx, hcloud.VolumeListOpts{
+		ListOpts: listOpts,
+	})
+	if err != nil {
+		errs = multierr.Append(errs, err)
+	}
+	for _, item := range volumes {
+		_, err := s.cloudProvider.Client.Volume.Delete(ctx, item)
 		if err != nil {
 			errs = multierr.Append(errs, err)
 			continue
