@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Check if direnv is installed
 if ! command -v direnv &> /dev/null; then
@@ -16,7 +16,7 @@ fi
 temp_envrc="temp_envrc"
 
 # Read env.template and prepend 'export ' to each line, then write to temp file
-> "$temp_envrc"  # Clear temp file if it exists
+echo "" > "$temp_envrc"  # Clear temp file if it exists
 while read -r line; do
     echo "export $line" >> "$temp_envrc"
 done < env.template
@@ -40,7 +40,7 @@ else
 fi
 
 # If user wants to update .envrc with new content
-read -p "Do you want to update .envrc with these changes? (y/n): " answer
+read -r -p "Do you want to update .envrc with these changes? (y/n): " answer
 if [[ $answer = [Yy]* ]]; then
     cp "$temp_envrc" .envrc
     echo ".envrc file updated successfully."

@@ -1,0 +1,1 @@
+Custom version based upon [github.com/ipfans/fxslog](https://github.com/ipfans/fxslog) which is licensed under the [MIT license](https://github.com/ipfans/fxslog/blob/ef28b8141434a3d4bf3344728247664cb613e4ff/LICENSE).

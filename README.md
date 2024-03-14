@@ -1,15 +1,14 @@
 ![Code Review](https://github.com/koor-tech/genesis/actions/workflows/code-review.yml/badge.svg)
 
+# Genesis
 
-# Koor-Tech Genesis
+Welcome to Koor Technologies, Inc. Genesis project!
 
+Our stack:
 
-Welcome to koor Genesis
-
-Our stack
 - Go
 - RabbitMQ
-- Postgres
+- PostgreSQL
 
 In order to run local please install direnv
 - https://direnv.net/

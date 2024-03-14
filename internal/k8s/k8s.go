@@ -3,10 +3,10 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"os"
+
 	helmclient "github.com/mittwald/go-helm-client"
 	"helm.sh/helm/v3/pkg/repo"
-	"log"
-	"os"
 )
 
 const (
@@ -26,26 +26,26 @@ func New(kubeConfigFile string, chartsDir string) *Cluster {
 	}
 }
 
-func (c *Cluster) InstallCharts() {
+func (c *Cluster) InstallCharts() error {
 	fmt.Println("======== Installing helm charts running... ===========")
 	// read configurations
 	kubeConf, err := os.ReadFile(c.kubeConfigFile)
 	if err != nil {
-		log.Fatal(fmt.Errorf("could not load KubeConfig: %v", err))
+		return fmt.Errorf("could not load KubeConfig. %w", err)
 	}
 
 	// rook-ceph operator values
 	rookCephOperatorValues := fmt.Sprintf("%s/%s", c.chartsDir, rookCephOperatorChartValues)
 	valuesRookOperatorYaml, err := os.ReadFile(rookCephOperatorValues)
 	if err != nil {
-		log.Fatal(fmt.Errorf("could not load values.yaml for rook-operator: %v", err))
+		return fmt.Errorf("could not load values.yaml for rook-operator: %w", err)
 	}
 
 	// rook-ceph cluster values
 	rookCephClusterValues := fmt.Sprintf("%s/%s", c.chartsDir, rookCephClusterChartValues)
 	valuesRookClusterYaml, err := os.ReadFile(rookCephClusterValues)
 	if err != nil {
-		log.Fatal(fmt.Errorf("could not load values.yaml for rook-cluster: %v", err))
+		return fmt.Errorf("could not load values.yaml for rook-cluster: %w", err)
 	}
 
 	fmt.Println("======== Preparing helm .. ===========")
@@ -64,7 +64,7 @@ func (c *Cluster) InstallCharts() {
 
 	helmClient, err := helmclient.NewClientFromKubeConf(opt, helmclient.Burst(100), helmclient.Timeout(10e9))
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	chartRepo := repo.Entry{
@@ -73,7 +73,7 @@ func (c *Cluster) InstallCharts() {
 	}
 
 	if err := helmClient.AddOrUpdateChartRepo(chartRepo); err != nil {
-		panic(err)
+		return err
 	}
 
 	chartSpec := helmclient.ChartSpec{
@@ -89,7 +89,7 @@ func (c *Cluster) InstallCharts() {
 
 	release, err := helmClient.InstallOrUpgradeChart(context.Background(), &chartSpec, nil)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	fmt.Println("========= Ceph Operator Deployed =================")
@@ -109,14 +109,14 @@ func (c *Cluster) InstallCharts() {
 	fmt.Println("========== installing Ceph GetCluster Helm Chart  =======")
 	clusterRelease, err := helmClient.InstallOrUpgradeChart(context.Background(), chartClusterSpec, nil)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	fmt.Println("========= Ceph GetCluster Deployed =================")
 	fmt.Printf("release: %+v\n", clusterRelease.Name)
 
 	releases, err := helmClient.ListDeployedReleases()
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	fmt.Println("========= List of charts installed =================")
@@ -125,4 +125,6 @@ func (c *Cluster) InstallCharts() {
 		fmt.Printf("name: %s notes: %s\n", release.Name, release.Info.Notes)
 	}
 	fmt.Println("================= CHARTS installed!=========")
+
+	return nil
 }

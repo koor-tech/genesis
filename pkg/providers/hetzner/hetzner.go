@@ -3,37 +3,52 @@ package hetzner
 import (
 	"context"
 	"fmt"
-	"github.com/hetznercloud/hcloud-go/v2/hcloud"
-	"github.com/koor-tech/genesis/pkg/utils"
-	"log"
+	"log/slog"
 	"os"
 	"strings"
+
+	"github.com/hetznercloud/hcloud-go/v2/hcloud"
+	"github.com/koor-tech/genesis/pkg/config"
+	"github.com/koor-tech/genesis/pkg/utils"
+	"go.uber.org/fx"
 )
 
 type Provider struct {
 	Client *hcloud.Client
 	Token  string
+	Logger *slog.Logger
 }
 
-func NewProvider() *Provider {
-	cfg := NewConfig()
-	p := Provider{
-		Token:  cfg.Token,
-		Client: hcloud.NewClient(hcloud.WithToken(cfg.Token)),
+type Params struct {
+	fx.In
+
+	Config *config.Config
+	Logger *slog.Logger
+}
+
+func New(p Params) (*Provider, error) {
+	prov := &Provider{
+		Token:  p.Config.CloudProvider.Hetzner.Token,
+		Client: hcloud.NewClient(hcloud.WithToken(p.Config.CloudProvider.Hetzner.Token)),
 	}
 
-	p.ConfigureCredentials()
-	return &p
+	if err := prov.ConfigureCredentials(); err != nil {
+		return nil, err
+	}
+
+	return prov, nil
 }
 
-func (p *Provider) ConfigureCredentials() {
+func (p *Provider) ConfigureCredentials() error {
 	err := os.Setenv("HCLOUD_TOKEN", p.Token)
 	if err != nil {
-		log.Fatalf("unable to set HCLOUD_TOKEN")
+		return fmt.Errorf("unable to set HCLOUD_TOKEN. %w", err)
 	}
+
+	return nil
 }
 
-func (p *Provider) buildLabels(ctx context.Context, customerName string) string {
+func (p *Provider) buildLabels(customerName string) string {
 	clusterNameLabel := fmt.Sprintf("koor-client-%s", customerName)
 	clusterWorkerLabelKey := fmt.Sprintf("koor-client-%s-workers", customerName)
 
@@ -46,11 +61,12 @@ func (p *Provider) buildLabels(ctx context.Context, customerName string) string 
 	for labelKey, labelValue := range labels {
 		hetznerLabels = append(hetznerLabels, fmt.Sprintf("%s=%s", labelKey, labelValue))
 	}
+
 	return strings.Join(hetznerLabels, ",")
 }
 
 func (p *Provider) GetServerByLabels(ctx context.Context, customerName string) ([]*hcloud.Server, error) {
-	hetznerLabels := p.buildLabels(ctx, customerName)
+	hetznerLabels := p.buildLabels(customerName)
 	filterOpts := hcloud.ServerListOpts{
 		ListOpts: hcloud.ListOpts{
 			LabelSelector: hetznerLabels,
@@ -59,7 +75,7 @@ func (p *Provider) GetServerByLabels(ctx context.Context, customerName string) (
 	servers, err := p.Client.Server.AllWithOpts(ctx, filterOpts)
 
 	if err != nil {
-		log.Printf("unable to get server, error: %q\n", err)
+		p.Logger.Error("unable to get server", "err", err)
 		return nil, err
 	}
 
@@ -73,10 +89,11 @@ func (p *Provider) AttacheVolumesToServers(ctx context.Context, customerName str
 		name := fmt.Sprintf("data-%s-pool1-%s", customerName, serverName[len(serverName)-5:])
 		err := p.AttachVolumeToServer(ctx, server, volLabels, 40, name, false)
 		if err != nil {
-			log.Print("unable to create volume:", "err", err)
+			p.Logger.Error("unable to create volume", "err", err)
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -90,7 +107,7 @@ func (p *Provider) AttachVolumeToServer(ctx context.Context, server *hcloud.Serv
 	}
 	_, _, err := p.Client.Volume.Create(ctx, opts)
 	if err != nil {
-		log.Printf("unable to attach volumes due to: %q\n", err)
+		p.Logger.Error("unable to attach volumes due to", "err", err)
 		return err
 	}
 	return nil

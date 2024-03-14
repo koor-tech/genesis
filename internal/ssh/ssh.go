@@ -3,27 +3,29 @@ package ssh
 import (
 	"context"
 	"fmt"
+	"log/slog"
+
 	"github.com/google/uuid"
 	"github.com/koor-tech/genesis/pkg/database"
-	"github.com/koor-tech/genesis/pkg/files"
 	"github.com/koor-tech/genesis/pkg/models"
 	sshRepo "github.com/koor-tech/genesis/pkg/repositories/postgres/ssh"
 	sshPkg "github.com/koor-tech/genesis/pkg/ssh"
-	"log/slog"
-	"os"
+	"github.com/koor-tech/genesis/pkg/utils"
 )
 
 type Service struct {
+	logger *slog.Logger
+
 	sshManager    *sshPkg.Manager
 	sshRepository sshRepo.SshInterface
-	logger        *slog.Logger
 }
 
-func NewService(db *database.DB) *Service {
+func NewService(logger *slog.Logger, db *database.DB) *Service {
 	return &Service{
-		sshManager:    sshPkg.NewManager(),
+		logger: logger,
+
+		sshManager:    sshPkg.NewManager(logger),
 		sshRepository: sshRepo.NewSshRepository(db),
-		logger:        slog.New(slog.NewTextHandler(os.Stdout, nil)),
 	}
 }
 
@@ -47,12 +49,12 @@ func (s *Service) BuildAndRunSSH(ctx context.Context, clusterID uuid.UUID, dirPa
 	sshModel.ClusterID = clusterID
 
 	//Save ssh into clients folder
-	err = files.SaveInFile(privateKeyFile, sshModel.PrivateKey, filePermission)
+	err = utils.SaveInFile(privateKeyFile, sshModel.PrivateKey, filePermission)
 	if err != nil {
 		s.logger.Error("unable to generate ssh keys", "err", err)
 		return nil, err
 	}
-	err = files.SaveInFile(publicKeyFile, sshModel.PublicKey, filePermission)
+	err = utils.SaveInFile(publicKeyFile, sshModel.PublicKey, filePermission)
 	if err != nil {
 		s.logger.Error("unable to generate ssh keys", "err", err)
 		return nil, err

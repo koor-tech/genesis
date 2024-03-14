@@ -1,0 +1,26 @@
+listen: ":8000"
+mode: "debug"
+directories:
+  dataDir: "/koor/clients"
+database:
+  host: "localhost"
+  user: "genesis"
+  password: ""
+  name: ""
+  sslEnabled: false
+rabbitmq:
+  host: "localhost"
+  port: 4369
+  user: "genesis"
+  password: ""
+notifications:
+  type: "noop"
+  email:
+    # Resend API Token
+    token: ""
+    from: ""
+    subject: ""
+    replyTo: ""
+cloudProvider:
+  hetzner:
+    token: ""
