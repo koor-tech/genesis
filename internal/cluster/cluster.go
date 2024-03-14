@@ -272,7 +272,7 @@ func (s *Service) ResumeCluster(ctx context.Context, clusterID uuid.UUID) error 
 	if err != nil {
 		s.logger.Error("unable to save the state of the cluster ", "err ", err, "clusterID", c.ID)
 	}
-	k8sCluster := k8s.New(s.genesisConfig.ChartsDir(), s.getCustomerDir(&c.Customer)+"/"+kubeConfigName)
+	k8sCluster := k8s.New(s.getCustomerDir(&c.Customer)+"/"+kubeConfigName, s.genesisConfig.ChartsDir())
 	k8sCluster.InstallCharts()
 	clusterState.Phase = models.ClusterPhaseInstallCephDone
 	err = s.clusterStateRepository.Update(ctx, clusterState)
