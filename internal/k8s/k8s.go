@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	rookCephClusterChartValues  = "charts/rook-ceph-cluster/values.yaml"
-	rookCephOperatorChartValues = "charts/rook-ceph/values.yaml"
+	rookCephClusterChartValues  = "rook-ceph-cluster/values.yaml"
+	rookCephOperatorChartValues = "rook-ceph/values.yaml"
 )
 
 type Cluster struct {
