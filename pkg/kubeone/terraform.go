@@ -71,47 +71,32 @@ func (b *Builder) WriteConfigFile(clusterName string) error {
 	return nil
 }
 
-func (b *Builder) RunTerraform() error {
+func (b *Builder) RunTerraform(ctx context.Context) error {
 	tf, err := tfexec.NewTerraform(b.dst, terraformExec)
 	if err != nil {
 		log.Printf("error running NewTerraform: %s", err)
 		return err
 	}
 
-	err = tf.Init(context.Background(), tfexec.Upgrade(true))
+	err = tf.Init(ctx, tfexec.Upgrade(true))
 	if err != nil {
 		log.Fatalf("error running Init: %s", err)
 	}
 	fmt.Println("==========  terraform init  done ==========")
 	fmt.Println("==========  running... terraform plan  ==========")
-	_, err = tf.Plan(context.Background())
+	_, err = tf.Plan(ctx)
 	if err != nil {
 		log.Printf("error running Plan: %s", err)
 		return err
 	}
 	fmt.Println("========== terraform plan done ==========")
-	fmt.Println("==========  running... terraform init apply ==========")
-	//err = tf.Apply(context.Background())
-	os.Setenv("TF_LOG", "INFO")
-	cmd1 := exec.Command("terraform", "apply", "--auto-approve=true")
-	cmd1.Dir = b.dst
+	fmt.Println("==========  running... terraform apply ==========")
+	err = tf.Apply(ctx)
 
-	var out bytes.Buffer
-	var stderr bytes.Buffer
-	cmd1.Stdout = &out
-	cmd1.Stderr = &stderr
-	err = cmd1.Run()
 	if err != nil {
-		fmt.Println("Executing: " + cmd1.String())
-		fmt.Println("Error: " + err.Error())
-		return err
+		log.Fatalf("error running Apply: %s", err)
 	}
-
-	//if err != nil {
-	//	log.Fatalf("error running Apply: %s", err)
-	//}
 	fmt.Println("========== terraform apply done ==========")
-	fmt.Println(out.String())
 
 	fmt.Println("========== dump terraform file: terraform output -json -no-color > tf.json ==========")
 	cmd := exec.Command("terraform", "output", "-json", "-no-color")

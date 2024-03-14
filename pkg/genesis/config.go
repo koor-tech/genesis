@@ -12,10 +12,11 @@ type Config struct {
 const (
 	templateDirPrefix = "templates"
 	clientsDirPrefix  = "clients"
+	chartsDirPrefix   = "charts"
 )
 
 func init() {
-	viper.SetDefault("GENESIS_DATA", "/koor/clients")
+	viper.SetDefault("GENESIS_DATA", "/koor")
 }
 
 func NewConfig() *Config {
@@ -30,4 +31,8 @@ func (c *Config) TemplatesDir() string {
 
 func (c *Config) ClientsDir() string {
 	return fmt.Sprintf("%s/%s", c.DataDir, clientsDirPrefix)
+}
+
+func (c *Config) ChartsDir() string {
+	return fmt.Sprintf("%s/%s", c.DataDir, chartsDirPrefix)
 }

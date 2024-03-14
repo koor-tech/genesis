@@ -24,4 +24,4 @@ RUN  curl -LO https://github.com/kubermatic/kubeone/releases/download/v${KUBEONE
      unzip ${KUBEONE_ZIP}  -d ${KUBEONE_DIR} && \
      mv ${KUBEONE_DIR}/kubeone /usr/local/bin
 
-RUN go mod download
+RUN go mod download && go mod tidy

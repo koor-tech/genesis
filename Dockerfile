@@ -11,14 +11,9 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o migrate cmd/migra
 
 FROM alpine:latest
 
-ENV HCLOUD_TOKEN token
-
 RUN apk update && \
     apk upgrade && \
-    apk add --no-cache curl && \
-    apk add --no-cache sudo && \
-    apk add --no-cache openssh-client && \
-    apk add --no-cache ca-certificates
+    apk add --no-cache curl sudo openssh-client ca-certificates
 
 RUN addgroup -S appgroup && adduser -S koor -G appgroup
 

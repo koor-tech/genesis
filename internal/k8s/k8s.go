@@ -9,20 +9,22 @@ import (
 	"os"
 )
 
+const (
+	rookCephClusterChartValues  = "charts/rook-ceph-cluster/values.yaml"
+	rookCephOperatorChartValues = "charts/rook-ceph/values.yaml"
+)
+
 type Cluster struct {
 	kubeConfigFile string
+	chartsDir      string
 }
 
-func New(kubeConfigFile string) *Cluster {
+func New(kubeConfigFile string, chartsDir string) *Cluster {
 	return &Cluster{
 		kubeConfigFile: kubeConfigFile,
+		chartsDir:      chartsDir,
 	}
 }
-
-const (
-	rookCephClusterChartValues  = "../../charts/rook-ceph-cluster/values.yaml"
-	rookCephOperatorChartValues = "../../charts/rook-ceph/values.yaml"
-)
 
 func (c *Cluster) InstallCharts() {
 	fmt.Println("======== Installing helm charts running... ===========")
@@ -31,11 +33,17 @@ func (c *Cluster) InstallCharts() {
 	if err != nil {
 		log.Fatal(fmt.Errorf("could not load KubeConfig: %v", err))
 	}
-	valuesRookOperatorYaml, err := os.ReadFile(rookCephOperatorChartValues)
+
+	// rook-ceph operator values
+	rookCephOperatorValues := fmt.Sprintf("%s/%s", c.chartsDir, rookCephOperatorChartValues)
+	valuesRookOperatorYaml, err := os.ReadFile(rookCephOperatorValues)
 	if err != nil {
 		log.Fatal(fmt.Errorf("could not load values.yaml for rook-operator: %v", err))
 	}
-	valuesRookClusterYaml, err := os.ReadFile(rookCephClusterChartValues)
+
+	// rook-ceph cluster values
+	rookCephClusterValues := fmt.Sprintf("%s/%s", c.chartsDir, rookCephClusterChartValues)
+	valuesRookClusterYaml, err := os.ReadFile(rookCephClusterValues)
 	if err != nil {
 		log.Fatal(fmt.Errorf("could not load values.yaml for rook-cluster: %v", err))
 	}

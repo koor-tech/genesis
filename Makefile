@@ -8,7 +8,7 @@ build-base:
 
 build: build-base
 	docker build  -t $(IMAGE_PREFIX) -f Dockerfile .
-	docker tag koor-tech/genesis-api:latest koorinc/genesis:$(TAG)
+	docker tag koor-tech/genesis:latest koorinc/genesis:$(TAG)
 
 download:
 	@go mod download
