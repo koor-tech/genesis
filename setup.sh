@@ -1,52 +1,38 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 
-# Check if direnv is installed
-if ! command -v direnv &> /dev/null; then
-    echo "Error: direnv is not installed. Please install direnv and try again."
-    exit 1
-fi
+CONFIG_FILE="config.yaml"
 
-# Check if env.template exists
-if [ ! -f env.template ]; then
-    echo "Error: env.template file not found!"
-    exit 1
-fi
-
-# Temporary file for new .envrc content
-temp_envrc="temp_envrc"
-
-# Read env.template and prepend 'export ' to each line, then write to temp file
-echo "" > "$temp_envrc"  # Clear temp file if it exists
-while read -r line; do
-    echo "export $line" >> "$temp_envrc"
-done < env.template
-
-# Check if .envrc exists, create if not
-if [ ! -f .envrc ]; then
-    touch .envrc
-fi
-
-# Show differences
-echo "Checking for differences between .envrc and env.template..."
-if diff -q .envrc "$temp_envrc" &> /dev/null; then
-    # No differences
-    echo "No differences found. No update needed."
-    rm "$temp_envrc"
-    exit 0
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "Making config.yaml..."
+    cat << EOF > $CONFIG_FILE
+listen: ":8000"
+mode: "debug"
+directories:
+  dataDir: "/koor"
+database:
+  host: "${GENESIS_DATABASE_HOST}"
+  user: "${GENESIS_DATABASE_USER}"
+  password: "${GENESIS_DATABASE_PASSWORD}"
+  name: "${GENESIS_DATABASE_NAME}"
+  sslEnabled: false
+rabbitmq:
+  host: "${GENESIS_RABBITMQ_HOST}"
+  port: "${GENESIS_RABBITMQ_PORT}"
+  user: "${GENESIS_RABBITMQ_USER}"
+  password: "${GENESIS_RABBITMQ_PASSWORD}"
+notifications:
+  type: "noop"
+  email:
+    token: "${EMAIL_TOKEN}"
+    from: "${EMAIL_FROM}"
+    subject: "${EMAIL_SUBJECT}"
+    replyTo: "${EMAIL_REPLYTO}"
+cloudProvider:
+  hetzner:
+    token: "${GENESIS_HETZNER_TOKEN}"
+EOF
 else
-    # Show differences
-    echo "Differences found:"
-    diff .envrc "$temp_envrc"
+    echo "the config.yaml exists skipping..."
 fi
 
-# If user wants to update .envrc with new content
-read -r -p "Do you want to update .envrc with these changes? (y/n): " answer
-if [[ $answer = [Yy]* ]]; then
-    cp "$temp_envrc" .envrc
-    echo ".envrc file updated successfully."
-else
-    echo "No changes made to .envrc."
-fi
-
-# Clean up
-rm "$temp_envrc"
+exec "$@"

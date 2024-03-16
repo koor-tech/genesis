@@ -28,8 +28,11 @@ RUN chown koor:appgroup /home/koor/genesis
 COPY templates/hetzner /koor/clients/templates/hetzner
 COPY cmd/migrations/migrations /app/migrations
 RUN chown -R koor:appgroup /koor/clients /home/koor/genesis /usr/local/bin/terraform /usr/local/bin/kubectl
+COPY setup.sh /usr/local/bin/setup.sh
+RUN chmod +x /usr/local/bin/setup.sh
 USER koor
 
 EXPOSE 8000
 
-ENTRYPOINT ["./genesis"]
+ENTRYPOINT ["/usr/local/bin/setup.sh"]
+CMD ["./genesis"]

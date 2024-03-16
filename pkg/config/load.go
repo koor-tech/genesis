@@ -25,6 +25,7 @@ func Load() (Result, error) {
 	// Viper Config reading setup
 	viper.SetEnvPrefix("GENESIS")
 	viper.SetConfigType("yaml")
+	viper.AutomaticEnv()
 
 	if configFile := os.Getenv("GENESIS_CONFIG_FILE"); configFile != "" {
 		viper.SetConfigFile(configFile)
