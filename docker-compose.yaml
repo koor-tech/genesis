@@ -14,49 +14,23 @@ services:
       store:
         condition: service_healthy
     volumes:
-      - .:/genesis-api
+      - ./config.yaml:/home/koor/config.yaml
       - clients:/koor/clients
-    environment:
-      - RABBITMQ_DEFAULT_USER=user
-      - RABBITMQ_DEFAULT_PASS=password
-      - RABBITMQ_HOST=rabbitmq
-      - DATABASE_HOST=store
-      - DATABASE_USER=postgres
-      - DATABASE_PASSWORD=password
-      - DATABASE_NAME=koor-genesis
-      - DATABASE_PORT=5432
-      - DATABASE_SSL_ENABLED=false
-      - GENESIS_DATA=/koor/clients
-    env_file:
-      - .env
 
   worker:
     image: koor-tech/genesis
     build:
       dockerfile: Dockerfile
       context: .
-    entrypoint: ./worker monitor
+    entrypoint: ./genesis monitor
     depends_on:
       rabbitmq:
         condition: service_healthy
       store:
         condition: service_healthy
     volumes:
-      - .cmd/worker/:/genesis-worker
+      - ./config.yaml:/home/koor/config.yaml
       - clients:/koor/clients
-    environment:
-      - RABBITMQ_DEFAULT_USER=user
-      - RABBITMQ_DEFAULT_PASS=password
-      - RABBITMQ_HOST=rabbitmq
-      - DATABASE_HOST=store
-      - DATABASE_USER=postgres
-      - DATABASE_PASSWORD=password
-      - DATABASE_NAME=koor-genesis
-      - DATABASE_PORT=5432
-      - DATABASE_SSL_ENABLED=false
-      - GENESIS_DATA=/koor/clients
-    env_file:
-      - .env
 
   migrate:
     image: koor-tech/genesis
@@ -64,21 +38,14 @@ services:
       dockerfile: Dockerfile
       context: .
     depends_on:
+      rabbitmq:
+        condition: service_healthy
       store:
         condition: service_healthy
-    env_file:
-      - .env
-    entrypoint: ./migrate migrate up
-    environment:
-      - RABBITMQ_DEFAULT_USER=user
-      - RABBITMQ_DEFAULT_PASS=password
-      - RABBITMQ_HOST=rabbitmq
-      - DATABASE_HOST=store
-      - DATABASE_USER=postgres
-      - DATABASE_PASSWORD=password
-      - DATABASE_NAME=koor-genesis
-      - DATABASE_PORT=5432
-      - DATABASE_SSL_ENABLED=false
+    entrypoint: ./genesis migrate up
+    volumes:
+      - ./config.yaml:/home/koor/config.yaml
+      - clients:/koor/clients
 
   rabbitmq:
     image: rabbitmq:3-management
@@ -95,12 +62,6 @@ services:
       interval: 30s
       timeout: 30s
       retries: 3
-
-  emails:
-    image: mailhog/mailhog:latest
-    ports:
-      - "8003:1025"
-      - "8100:8025"
 
   store:
     image: postgres

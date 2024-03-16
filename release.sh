@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+# sync tags, this will fetch tags from gitbhug in order to ensure that we have all the same tags
+echo "sync tags from remote..."
+git tag -d $(git tag -l) && echo "tags clean"
+echo "pulling tags" && git pull && echo ""
+
 # Check if a tag was passed as an argument
 if [ -n "$1" ]; then
     # Use the provided tag

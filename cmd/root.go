@@ -65,7 +65,7 @@ func getFxBaseOpts() []fx.Option {
 }
 
 var RootCmd = &cobra.Command{
-	Use: "gensis",
+	Use: "genesis",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fxOpts := getFxBaseOpts()
 
