@@ -10,10 +10,4 @@ Our stack:
 - RabbitMQ
 - PostgreSQL
 
-In order to run local please install direnv
-- https://direnv.net/
- and run this command in order to create your file `.envrc` from `env.template`
-```bash
-chmod +x setup.sh
-./setup.sh
-```
+In order to run the project locally please create your file `config.yaml` from `config.example.yaml` using your settings

@@ -15,6 +15,8 @@ services:
         condition: service_healthy
     volumes:
       - ./config.yaml:/home/koor/config.yaml
+      - ./templates:/koor/templates
+      - ./charts:/koor/charts
       - clients:/koor/clients
 
   worker:
@@ -29,6 +31,8 @@ services:
       store:
         condition: service_healthy
     volumes:
+      - ./templates:/koor/templates
+      - ./charts:/koor/charts
       - ./config.yaml:/home/koor/config.yaml
       - clients:/koor/clients
 
@@ -44,6 +48,8 @@ services:
         condition: service_healthy
     entrypoint: ./genesis migrate up
     volumes:
+      - ./templates:/koor/templates
+      - ./charts:/koor/charts
       - ./config.yaml:/home/koor/config.yaml
       - clients:/koor/clients
 
@@ -77,8 +83,10 @@ services:
       start_period: 80s
     ports:
       - "5433:5432"
+    volumes:
+      - store_data:/var/lib/postgresql/data
 
 volumes:
   rabbitmq-data:
-  postgres-data:
+  store_data:
   clients:

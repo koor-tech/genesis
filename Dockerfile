@@ -14,20 +14,14 @@ USER koor
 
 WORKDIR /home/koor/
 
-# This should be a volume from ceph
-VOLUME "/koor/clients"
-
 COPY --from=builder /usr/local/bin/kubectl /usr/local/bin/kubectl
 COPY --from=builder /usr/local/bin/terraform /usr/local/bin/terraform
 COPY --from=builder /usr/local/bin/kubeone /usr/local/bin/kubeone
 COPY --from=builder /app/genesis .
 
 USER root
-RUN mkdir -p /koor/clients/templates
 RUN chown koor:appgroup /home/koor/genesis
-COPY templates/hetzner /koor/clients/templates/hetzner
-COPY cmd/migrations/migrations /app/migrations
-RUN chown -R koor:appgroup /koor/clients /home/koor/genesis /usr/local/bin/terraform /usr/local/bin/kubectl
+RUN chown -R koor:appgroup /home/koor/genesis /usr/local/bin/terraform /usr/local/bin/kubectl
 COPY setup.sh /usr/local/bin/setup.sh
 RUN chmod +x /usr/local/bin/setup.sh
 USER koor
