@@ -13,6 +13,10 @@ import (
 	"go.uber.org/fx"
 )
 
+const (
+	defaultOSDSizeInGB = 100
+)
+
 type Provider struct {
 	Client *hcloud.Client
 	Token  string
@@ -87,7 +91,7 @@ func (p *Provider) AttacheVolumesToServers(ctx context.Context, customerName str
 	for _, server := range servers {
 		serverName := server.Name
 		name := fmt.Sprintf("data-%s-pool1-%s", customerName, serverName[len(serverName)-5:])
-		err := p.AttachVolumeToServer(ctx, server, volLabels, 40, name, false)
+		err := p.AttachVolumeToServer(ctx, server, volLabels, defaultOSDSizeInGB, name, false)
 		if err != nil {
 			p.Logger.Error("unable to create volume", "err", err)
 			return err

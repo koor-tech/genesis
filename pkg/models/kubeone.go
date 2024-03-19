@@ -26,7 +26,7 @@ func NewKubeOneConfig(clusterName string) *KubeOneConfig {
 		Kind:       "KubeOneCluster",
 		Name:       clusterName,
 		Versions: Versions{
-			Kubernetes: "1.25.6",
+			Kubernetes: "1.27.11",
 		},
 		CloudProvider: CloudProvider{
 			Hetzner:  CloudProviderHetzner{},

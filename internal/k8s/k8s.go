@@ -14,6 +14,10 @@ const (
 	rookCephOperatorChartValues = "rook-ceph/values.yaml"
 )
 
+const (
+	defaultRookCephNS = "rook-ceph"
+)
+
 type Cluster struct {
 	kubeConfigFile string
 	chartsDir      string
@@ -52,6 +56,7 @@ func (c *Cluster) InstallCharts() error {
 
 	opt := &helmclient.KubeConfClientOptions{
 		Options: &helmclient.Options{
+			Namespace:        defaultRookCephNS,
 			RepositoryCache:  "/tmp/.helmcache",
 			RepositoryConfig: "/tmp/.helmrepo",
 			Debug:            true,
@@ -79,7 +84,7 @@ func (c *Cluster) InstallCharts() error {
 	chartSpec := helmclient.ChartSpec{
 		ReleaseName:     "rook-ceph",
 		ChartName:       "rook-release/rook-ceph",
-		Namespace:       "rook-ceph",
+		Namespace:       defaultRookCephNS,
 		CreateNamespace: true,
 		UpgradeCRDs:     true,
 		ValuesYaml:      string(valuesRookOperatorYaml),
@@ -100,12 +105,12 @@ func (c *Cluster) InstallCharts() error {
 	chartClusterSpec := &helmclient.ChartSpec{
 		ReleaseName:     "rook-ceph-cluster",
 		ChartName:       "rook-release/rook-ceph-cluster",
-		Namespace:       "rook-ceph",
+		Namespace:       defaultRookCephNS,
 		ValuesYaml:      string(valuesRookClusterYaml),
 		CreateNamespace: true,
-
-		Force: true,
+		Force:           true,
 	}
+
 	fmt.Println("========== installing Ceph GetCluster Helm Chart  =======")
 	clusterRelease, err := helmClient.InstallOrUpgradeChart(context.Background(), chartClusterSpec, nil)
 	if err != nil {
