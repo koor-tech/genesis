@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path"
 
 	helmclient "github.com/mittwald/go-helm-client"
 	"helm.sh/helm/v3/pkg/repo"
@@ -35,14 +36,14 @@ func (c *Cluster) InstallCharts() error {
 	}
 
 	// rook-ceph operator values
-	rookCephOperatorValues := fmt.Sprintf("%s/%s", c.chartsDir, rookCephOperatorChartValues)
+	rookCephOperatorValues := path.Join(c.chartsDir, rookCephOperatorChartValues)
 	valuesRookOperatorYaml, err := os.ReadFile(rookCephOperatorValues)
 	if err != nil {
 		return fmt.Errorf("could not load values.yaml for rook-operator: %w", err)
 	}
 
 	// rook-ceph cluster values
-	rookCephClusterValues := fmt.Sprintf("%s/%s", c.chartsDir, rookCephClusterChartValues)
+	rookCephClusterValues := path.Join(c.chartsDir, rookCephClusterChartValues)
 	valuesRookClusterYaml, err := os.ReadFile(rookCephClusterValues)
 	if err != nil {
 		return fmt.Errorf("could not load values.yaml for rook-cluster: %w", err)

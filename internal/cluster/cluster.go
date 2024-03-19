@@ -3,6 +3,7 @@ package cluster
 import (
 	"context"
 	"fmt"
+	"path"
 
 	"github.com/google/uuid"
 	"github.com/hetznercloud/hcloud-go/v2/hcloud"
@@ -103,11 +104,11 @@ func (s *Service) GetCluster(ctx context.Context, ID uuid.UUID) (*models.Cluster
 }
 
 func (s *Service) getProviderName(provider *models.Provider) string {
-	return fmt.Sprintf("%s/%s", s.dirCfg.TemplatesDir(), provider.Name)
+	return path.Join(s.dirCfg.TemplatesDir(), provider.Name)
 }
 
 func (s *Service) getCustomerDir(customer *models.Customer) string {
-	return fmt.Sprintf("%s/%s", s.dirCfg.ClientsDir(), customer.ID)
+	return path.Join(s.dirCfg.ClientsDir(), customer.ID.String())
 }
 
 func (s *Service) BuildCluster(ctx context.Context, customer *models.Customer, providerID uuid.UUID) (*models.Cluster, error) {

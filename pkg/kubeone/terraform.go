@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"path"
 	"strings"
 
 	"github.com/hashicorp/terraform-exec/tfexec"
@@ -52,7 +53,7 @@ func (b *Builder) WriteTFVars() error {
 		tfConfigFile = append(tfConfigFile, configLine)
 	}
 
-	tfVars := fmt.Sprintf("%s/%s", b.dst, "terraform.tfvars")
+	tfVars := path.Join(b.dst, "terraform.tfvars")
 	err = utils.SaveInFile(tfVars, strings.Join(tfConfigFile, "\n"), 0600)
 	if err != nil {
 		return err

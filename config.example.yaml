@@ -19,7 +19,6 @@ notifications:
     # Resend API Token
     token: ""
     from: ""
-    subject: ""
     replyTo: ""
 cloudProvider:
   hetzner:
