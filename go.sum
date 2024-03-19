@@ -458,8 +458,8 @@ github.com/sagikazarmark/locafero v0.4.0 h1:HApY1R9zGo4DBgr7dqsTH/JJxLTTsOt7u6ke
 github.com/sagikazarmark/locafero v0.4.0/go.mod h1:Pe1W6UlPYUk/+wc/6KFhbORCfqzgYEpgQ3O5fPuL3H4=
 github.com/sagikazarmark/slog-shim v0.1.0 h1:diDBnUNK9N/354PgrxMywXnAwEr1QZcOr6gto+ugjYE=
 github.com/sagikazarmark/slog-shim v0.1.0/go.mod h1:SrcSrq8aKtyuqEI1uvTDTK1arOWRIczQRv+GVI1AkeQ=
-github.com/samber/slog-gin v1.10.3 h1:kOZqdpyTg/5xnW1ArCZ/zvQ3fkYFB2Sq93v+dTyVujg=
-github.com/samber/slog-gin v1.10.3/go.mod h1:BJ5m8e4irnwx/oemuG6eqokK5MFiiMshCuqr07GAnL8=
+github.com/samber/slog-gin v1.11.0 h1:a9M1DgzM914M/gCe/xGDaiQGOucLiqFYeqctgTT8G5I=
+github.com/samber/slog-gin v1.11.0/go.mod h1:BJ5m8e4irnwx/oemuG6eqokK5MFiiMshCuqr07GAnL8=
 github.com/segmentio/asm v1.2.0 h1:9BQrFxC+YOHJlTlHGkTrFWf59nbL3XnCoFLTwDCI7ys=
 github.com/segmentio/asm v1.2.0/go.mod h1:BqMnlJP91P8d+4ibuonYZw9mfnzI9HfxselHZr5aAcs=
 github.com/sergi/go-diff v1.2.0 h1:XU+rvMAioB0UC3q1MFrIQy4Vo5/4VsRDQQXHsEya6xQ=
