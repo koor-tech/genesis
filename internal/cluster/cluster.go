@@ -307,8 +307,15 @@ func (s *Service) ResumeCluster(ctx context.Context, clusterID uuid.UUID) error 
 	if err != nil {
 		s.logger.Error("unable to save the state of the cluster ", "err ", err, "clusterID", cluster.ID)
 	}
-	k8sCluster := k8s.New(s.getCustomerDir(&cluster.Customer)+"/"+kubeConfigName, s.dirCfg.ChartsDir())
-	k8sCluster.InstallCharts()
+
+	kubeConfigFile := s.getCustomerDir(&cluster.Customer) + "/" + kubeConfigName
+
+	k8sCluster := k8s.New(kubeConfigFile, s.dirCfg.ChartsDir())
+	err = k8sCluster.InstallCharts()
+	if err != nil {
+		s.logger.Error("unable to install rook-ceph charts ", "err ", err, "clusterID", cluster.ID)
+		return err
+	}
 	clusterState.Phase = models.ClusterPhaseInstallCephDone
 	err = s.clusterStateRepository.Update(ctx, clusterState)
 	if err != nil {
@@ -316,6 +323,18 @@ func (s *Service) ResumeCluster(ctx context.Context, clusterID uuid.UUID) error 
 	}
 
 	s.logger.Info("Ceph Cluster provisioned")
+
+	kubeConfigData, err := utils.ReadFileAsString(kubeConfigFile)
+	if err != nil {
+		s.logger.Error("unable to get the content of kubeConfig file", "file", kubeConfigFile, "err", err)
+		return err
+	}
+
+	cluster.KubeConfig = &kubeConfigData
+	err = s.clustersRepository.Update(ctx, *cluster)
+	if err != nil {
+		s.logger.Error("unable to update the cluster ", "err ", err, "clusterID", cluster.ID)
+	}
 
 	if err := s.notifier.Send(cluster.Customer); err != nil {
 		s.logger.Error("failed to notify customer", "err", err)

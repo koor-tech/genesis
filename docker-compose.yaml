@@ -1,7 +1,19 @@
-version: '3.8'
+version: '3.9'
 
 services:
+  change-vol-ownership:
+    image: alpine
+    user: "root"
+    # Specify the group in question
+    group_add:
+      - '${GROUP_ID}'
+    volumes:
+      # The volume to chown
+      - clients:/tmp/clients
+    command: chown -R  ${USER_ID}:${GROUP_ID} /tmp/clients
+
   api:
+    user: "${USER_ID}:${GROUP_ID}"
     image: koor-tech/genesis
     build:
       dockerfile: Dockerfile
@@ -13,6 +25,8 @@ services:
         condition: service_healthy
       store:
         condition: service_healthy
+      change-vol-ownership:
+        condition: service_completed_successfully
     volumes:
       - ./config.yaml:/home/koor/config.yaml
       - ./templates:/koor/templates
@@ -20,6 +34,7 @@ services:
       - clients:/koor/clients
 
   worker:
+    user: "${USER_ID}:${GROUP_ID}"
     image: koor-tech/genesis
     build:
       dockerfile: Dockerfile
@@ -30,6 +45,8 @@ services:
         condition: service_healthy
       store:
         condition: service_healthy
+      change-vol-ownership:
+        condition: service_completed_successfully
     volumes:
       - ./templates:/koor/templates
       - ./charts:/koor/charts

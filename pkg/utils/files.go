@@ -71,3 +71,12 @@ func SaveInFile(name, content string, permissions int) error {
 
 	return nil
 }
+
+func ReadFileAsString(name string) (string, error) {
+	content, err := os.ReadFile(name)
+	if err != nil {
+		return "", fmt.Errorf("failed to read file. %w", err)
+	}
+
+	return string(content), nil
+}

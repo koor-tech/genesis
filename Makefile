@@ -25,3 +25,8 @@ test:
 
 push:
 	docker push koorinc/genesis:$(TAG)
+
+compose:
+	@USER_ID=$(shell id -u) \
+	GROUP_ID=$(shell id -g) \
+	docker compose up

@@ -66,10 +66,10 @@ func RegisterRoutes(r *gin.Engine, clusterHandler *handler.Cluster) *gin.Engine 
 
 	v1 := r.Group("/api/v1")
 	{
-		v1.POST("/cluster", clusterHandler.CreateCluster)
+		v1.POST("/clusters", clusterHandler.CreateCluster)
 		v1.GET("/clusters/:id", clusterHandler.GetCluster)
-		v1.DELETE("/cluster/:id", clusterHandler.DeleteCluster)
-		v1.PUT("/cluster/:id", clusterHandler.ResumeCluster)
+		v1.DELETE("/clusters/:id", clusterHandler.DeleteCluster)
+		v1.PUT("/clusters/:id", clusterHandler.ResumeCluster)
 	}
 
 	return r

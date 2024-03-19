@@ -8,5 +8,6 @@ type Cluster struct {
 	ProviderID   uuid.UUID    `db:"provider_id"`
 	Customer     Customer     `db:"customers"`
 	Provider     Provider     `db:"providers"`
+	KubeConfig   *string      `db:"kube_config"`
 	ClusterState ClusterState `db:"cs"`
 }
