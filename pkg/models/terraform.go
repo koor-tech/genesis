@@ -16,7 +16,7 @@ func NewTerraformConfig(cluster *Cluster, dst string) *TerraformConfig {
 		ClusterName:                      "koor-client-" + cluster.Customer.Name,
 		SshPublicKeyFile:                 dst + "/id_ed25519.pub",
 		ControlPlaneVmCount:              1,
-		InitialMachineDeploymentReplicas: 3,
+		InitialMachineDeploymentReplicas: 4,
 		WorkerType:                       "cpx41",
 		ControlPlaneType:                 "cpx31",
 		Os:                               "ubuntu",
