@@ -9,7 +9,10 @@ import (
 	"github.com/resend/resend-go/v2"
 )
 
-const emailText = `Your managed Koor Ceph Cluster is ready to use!`
+const (
+	emailSubject = `Your managed Koor Ceph Cluster is ready to use!`
+	emailText    = `Your managed Koor Ceph Cluster is ready to use!`
+)
 
 type Email struct {
 	Notifier
@@ -25,6 +28,8 @@ type Email struct {
 func NewEmail(logger *slog.Logger, cfg config.EmailNotifications) (Notifier, error) {
 	client := resend.NewClient(cfg.Token)
 
+	// TODO either we use a a separate template "collection" for the notification in general or
+	// a "central" templates object
 	tpl, err := template.New("email").Parse(emailText)
 	if err != nil {
 		return nil, err
@@ -44,8 +49,8 @@ func (n *Email) Send(customer models.Customer) error {
 	params := &resend.SendEmailRequest{
 		To:      []string{customer.Email},
 		From:    n.cfg.From,
-		Subject: n.cfg.Subject,
 		ReplyTo: n.cfg.ReplyTo,
+		Subject: emailSubject,
 		Text:    emailText,
 	}
 

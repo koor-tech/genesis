@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"path"
 
 	"github.com/google/uuid"
 	"github.com/koor-tech/genesis/pkg/database"
@@ -41,8 +42,8 @@ func (s *Service) BuildAndRunSSH(ctx context.Context, clusterID uuid.UUID, dirPa
 		return nil, err
 	}
 
-	privateKeyFile := fmt.Sprintf("%s/%s", dirPath, fileKeyName)
-	publicKeyFile := fmt.Sprintf("%s/%s.pub", dirPath, fileKeyName)
+	privateKeyFile := path.Join(dirPath, fileKeyName)
+	publicKeyFile := path.Join(dirPath, fmt.Sprintf("%s.pub", fileKeyName))
 
 	sshModel.PrivateFilePath = privateKeyFile
 	sshModel.PublicFilePath = publicKeyFile

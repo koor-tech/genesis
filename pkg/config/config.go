@@ -64,7 +64,6 @@ type EmailNotifications struct {
 	Token string `yaml:"token"`
 
 	From    string `yaml:"from"`
-	Subject string `yaml:"subject"`
 	ReplyTo string `yaml:"replyTo"`
 }
 
