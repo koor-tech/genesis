@@ -21,6 +21,7 @@ type Params struct {
 	Logger *slog.Logger
 	Config *config.Config
 
+	Shutdowner     fx.Shutdowner
 	ClusterHandler *handler.Cluster // Use annotations for easily adding new handlers on the go instead of "just one"
 }
 
@@ -49,7 +50,14 @@ func New(p Params) (*gin.Engine, error) {
 				return err
 			}
 			p.Logger.Info("http server listening", "address", srv.Addr)
-			go srv.Serve(ln)
+			go func() {
+				if err := srv.Serve(ln); err != nil {
+					p.Logger.Error("unable to start the server", "err", err)
+					if shutdownErr := p.Shutdowner.Shutdown(); shutdownErr != nil {
+						p.Logger.Error("failed to shutdown the application", "err", shutdownErr)
+					}
+				}
+			}()
 
 			return nil
 		},
