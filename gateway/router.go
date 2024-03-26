@@ -49,7 +49,11 @@ func New(p Params) (*gin.Engine, error) {
 				return err
 			}
 			p.Logger.Info("http server listening", "address", srv.Addr)
-			go srv.Serve(ln)
+			go func() {
+				if err := srv.Serve(ln); err != nil {
+					p.Logger.Error("unable to start the server", "err", err)
+				}
+			}()
 
 			return nil
 		},

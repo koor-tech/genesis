@@ -62,7 +62,7 @@ func NewWorker(p Params) (*Worker, error) {
 	return w, nil
 }
 
-func (w *Worker) ResumeCluster(ch <-chan amqp.Delivery) error {
+func (w *Worker) ResumeCluster(ch <-chan amqp.Delivery) {
 	forever := make(chan bool)
 
 	go func() {
@@ -74,8 +74,6 @@ func (w *Worker) ResumeCluster(ch <-chan amqp.Delivery) error {
 
 	w.logger.Info("[*] Waiting for messages. To exit press CTRL+C")
 	<-forever
-
-	return nil
 }
 
 func (w *Worker) processMessage(body []byte) {
