@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -44,13 +45,13 @@ func (h *Cluster) CreateCluster(c *gin.Context) {
 		Name:  createClusterRequest.ClientName,
 		Email: createClusterRequest.ClientEmail,
 	}
-	clusterState, err := h.clusterSvc.BuildCluster(c, &customer, uuid.MustParse("80be226b-8355-4dea-b41a-6e17ea37559a"))
+	koorCluster, err := h.clusterSvc.BuildCluster(c, &customer, uuid.MustParse("80be226b-8355-4dea-b41a-6e17ea37559a"))
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"cluster": clusterState})
+	c.JSON(http.StatusCreated, gin.H{"cluster": mapCluster(koorCluster)})
 }
 
 func (h *Cluster) GetCluster(c *gin.Context) {
@@ -58,11 +59,15 @@ func (h *Cluster) GetCluster(c *gin.Context) {
 
 	koorCluster, err := h.clusterSvc.GetCluster(context.Background(), clusterID)
 	if err != nil {
+		if errors.Is(err, models.ErrClusterNotFound) {
+			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
 		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": err})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"cluster": koorCluster})
+	c.JSON(http.StatusOK, gin.H{"cluster": mapCluster(koorCluster)})
 }
 
 func (h *Cluster) DeleteCluster(c *gin.Context) {
@@ -83,5 +88,5 @@ func (h *Cluster) ResumeCluster(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"cluster": nil})
+	c.JSON(http.StatusCreated, gin.H{"cluster": nil})
 }
