@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/koor-tech/genesis/pkg/fxslog"
+	"github.com/koor-tech/genesis/tmpls"
 	"github.com/spf13/cobra"
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxevent"
@@ -48,6 +49,8 @@ func getFxBaseOpts() []fx.Option {
 			ssh.NewSshRepository,
 
 			sshSvc.NewService,
+
+			tmpls.New,
 
 			hetzner.New,
 			worker.NewWorker,
