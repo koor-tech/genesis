@@ -1,6 +1,6 @@
 module github.com/koor-tech/genesis
 
-go 1.21.3
+go 1.22.2
 
 require (
 	github.com/Masterminds/squirrel v1.5.4
