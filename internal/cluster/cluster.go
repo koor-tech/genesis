@@ -197,6 +197,11 @@ func (s *Service) BuildCluster(ctx context.Context, customer *models.Customer, p
 		return cluster, err
 	}
 
+	cluster, err = s.GetCluster(ctx, cluster.ID)
+	if err != nil {
+		s.logger.Error("unable to find the cluster", "err", err)
+		return nil, err
+	}
 	s.logger.Info("Done")
 	return cluster, nil
 }
