@@ -274,8 +274,8 @@ func (s *Service) ResumeCluster(ctx context.Context, clusterID uuid.UUID) error 
 		s.logger.Error("unable to save the state of the cluster ", "err ", err, "clusterID", cluster.ID)
 	}
 
-	s.logger.Info("Awaiting to get ready the servers 20.. seconds")
-	time.Sleep(20 * time.Second)
+	s.logger.Info("Awaiting to get ready the servers 120.. seconds")
+	time.Sleep(120 * time.Second)
 	clusterState.Phase = models.ClusterPhaseProviderConfInit
 	err = s.clusterStateRepository.Update(ctx, clusterState)
 	if err != nil {
