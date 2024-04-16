@@ -13,6 +13,7 @@ type Config struct {
 	RabbitMQ      RabbitMQ      `yaml:"rabbitmq"`
 	Notifications Notifications `yaml:"notifications"`
 	CloudProvider CloudProvider `yaml:"cloudProvider"`
+	Secret        string        `default:"abc" yaml:"secret"`
 }
 
 type Directories struct {

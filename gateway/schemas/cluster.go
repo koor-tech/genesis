@@ -3,9 +3,9 @@ package schemas
 import "github.com/google/uuid"
 
 type Customer struct {
-	ID    uuid.UUID `json:"id"`
-	Email string    `json:"email"`
-	Name  string    `json:"name"`
+	ID      uuid.UUID `json:"id"`
+	Email   string    `json:"email"`
+	Company string    `json:"company"`
 }
 
 type Provider struct {

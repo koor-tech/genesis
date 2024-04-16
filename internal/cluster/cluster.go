@@ -113,13 +113,6 @@ func (s *Service) getCustomerDir(customer *models.Customer) string {
 
 func (s *Service) BuildCluster(ctx context.Context, customer *models.Customer, providerID uuid.UUID) (*models.Cluster, error) {
 	s.logger.Info("BuildCluster", "customer", customer.ID)
-
-	customer, err := s.customerRepository.Save(ctx, customer)
-	if err != nil {
-		s.logger.Error("unable to save client", "err", err)
-		return nil, err
-	}
-
 	provider, err := s.providerRepository.QueryByID(ctx, providerID)
 	if err != nil {
 		s.logger.Error("unable to get provider", "err", err)
@@ -282,13 +275,13 @@ func (s *Service) ResumeCluster(ctx context.Context, clusterID uuid.UUID) error 
 		s.logger.Error("unable to save the state of the cluster ", "err ", err, "clusterID", cluster.ID)
 	}
 
-	servers, err := s.cloudProvider.GetServerByLabels(ctx, cluster.Customer.Name)
+	servers, err := s.cloudProvider.GetServerByLabels(ctx, cluster.Customer.Company)
 	if err != nil {
 		s.logger.Error("unable to get server error:", "err", err)
 		return err
 	}
 	s.logger.Info("attaching volumes")
-	err = s.cloudProvider.AttacheVolumesToServers(ctx, cluster.Customer.Name, servers)
+	err = s.cloudProvider.AttacheVolumesToServers(ctx, cluster.Customer.Company, servers)
 	if err != nil {
 		s.logger.Error("unable to get server error:", "err", err)
 		return err
@@ -307,7 +300,7 @@ func (s *Service) ResumeCluster(ctx context.Context, clusterID uuid.UUID) error 
 	}
 	//
 	s.logger.Info("installing rook-ceph")
-	kubeConfigName := fmt.Sprintf("koor-client-%s-kubeconfig", cluster.Customer.Name)
+	kubeConfigName := fmt.Sprintf("koor-client-%s-kubeconfig", cluster.Customer.Company)
 	clusterState.Phase = models.ClusterPhaseInstallCephInit
 	err = s.clusterStateRepository.Update(ctx, clusterState)
 	if err != nil {

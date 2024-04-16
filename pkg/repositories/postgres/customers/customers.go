@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-
 	sq "github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
 	"github.com/koor-tech/genesis/pkg/database"
@@ -24,8 +23,8 @@ func NewCustomersRepository(db *database.DB) *CustomersRepository {
 func (r *CustomersRepository) Save(ctx context.Context, customer *models.Customer) (*models.Customer, error) {
 	sqlStmt, args, _ := sq.StatementBuilder.PlaceholderFormat(sq.Dollar).
 		Insert(`customers`).
-		Columns(`id`, `name`, `email`).
-		Values(customer.ID, customer.Name, customer.Email).
+		Columns(`id`, `company`, `email`).
+		Values(customer.ID, customer.Company, customer.Email).
 		ToSql()
 
 	_, err := r.db.Conn.ExecContext(ctx, sqlStmt, args...)
@@ -39,7 +38,8 @@ func (r *CustomersRepository) QueryByID(ctx context.Context, ID uuid.UUID) (*mod
 	var builder = sq.StatementBuilder.PlaceholderFormat(sq.Dollar).
 		Select(
 			`c.id`,
-			`cs.name`,
+			`c.company`,
+			`c.email`,
 		).
 		From(`customers c`)
 	var c models.Customer
@@ -47,7 +47,7 @@ func (r *CustomersRepository) QueryByID(ctx context.Context, ID uuid.UUID) (*mod
 	sqlStmt, args, _ := builder.Where(`c.id = $1`, ID).ToSql()
 	if err := r.db.Conn.GetContext(ctx, &c, sqlStmt, args...); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, models.ErrClusterNotFound
+			return nil, models.ErrCustomerNotFound
 		}
 		return nil, err
 	}
