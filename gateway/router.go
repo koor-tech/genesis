@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"github.com/koor-tech/genesis/gateway/middleware"
 	"log/slog"
 	"net"
 	"net/http"
@@ -23,6 +24,7 @@ type Params struct {
 
 	Shutdowner     fx.Shutdowner
 	ClusterHandler *handler.Cluster // Use annotations for easily adding new handlers on the go instead of "just one"
+	AuthMiddleware *middleware.AuthMiddleware
 }
 
 func New(p Params) (*gin.Engine, error) {
@@ -35,7 +37,7 @@ func New(p Params) (*gin.Engine, error) {
 	r.Use(sloggin.New(p.Logger))
 	r.Use(gin.Recovery())
 
-	RegisterRoutes(r, p.ClusterHandler)
+	RegisterRoutes(r, p.ClusterHandler, p.AuthMiddleware)
 
 	// Create HTTP Server for graceful shutdown handling
 	srv := &http.Server{
@@ -69,10 +71,9 @@ func New(p Params) (*gin.Engine, error) {
 	return r, nil
 }
 
-func RegisterRoutes(r *gin.Engine, clusterHandler *handler.Cluster) *gin.Engine {
+func RegisterRoutes(r *gin.Engine, clusterHandler *handler.Cluster, authMiddleware *middleware.AuthMiddleware) *gin.Engine {
 	r.GET("/status", handler.GetStatus)
-
-	v1 := r.Group("/api/v1")
+	v1 := r.Group("/api/v1").Use(authMiddleware.Validate)
 	{
 		v1.POST("/clusters", clusterHandler.CreateCluster)
 		v1.GET("/clusters/:id", clusterHandler.GetCluster)

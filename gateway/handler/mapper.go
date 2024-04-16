@@ -10,9 +10,9 @@ func mapCluster(koorCluster *models.Cluster) *schemas.Cluster {
 		ID:    koorCluster.ID,
 		Phase: int(koorCluster.ClusterState.Phase),
 		Customer: schemas.Customer{
-			ID:    koorCluster.Customer.ID,
-			Name:  koorCluster.Customer.Name,
-			Email: koorCluster.Customer.Email,
+			ID:      koorCluster.Customer.ID,
+			Company: koorCluster.Customer.Company,
+			Email:   koorCluster.Customer.Email,
 		},
 		Provider: schemas.Provider{
 			ID:   koorCluster.Provider.ID,

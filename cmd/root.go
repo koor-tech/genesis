@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"github.com/koor-tech/genesis/gateway/middleware"
+	"github.com/koor-tech/genesis/internal/auth"
 	"log/slog"
 	"os"
 	"time"
@@ -61,6 +63,8 @@ func getFxBaseOpts() []fx.Option {
 			rabbitmq.NewClient,
 			handler.NewCluster,
 			cluster.NewService,
+			auth.NewService,
+			middleware.NewMiddleware,
 
 			// Add any dependencies here so they can just be injected
 		),

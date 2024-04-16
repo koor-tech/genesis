@@ -13,7 +13,7 @@ create table
 create table
     public.customers (
                          id uuid not null default gen_random_uuid (),
-                         name character varying not null,
+                         company character varying not null,
                          email character varying not null,
                          created_at timestamp with time zone null default now(),
                          updated_at timestamp with time zone null default now(),

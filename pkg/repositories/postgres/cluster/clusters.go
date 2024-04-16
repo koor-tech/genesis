@@ -67,7 +67,7 @@ func (r *ClusterRepository) QueryByID(ctx context.Context, clusterID uuid.UUID) 
 			`c.customer_id`,
 			`c.kube_config`,
 			`customers.id as "customers.id"`,
-			`customers.name as "customers.name"`,
+			`customers.company as "customers.company"`,
 			`customers.email as "customers.email"`,
 			`c.provider_id`,
 			`p.id as "providers.id"`,

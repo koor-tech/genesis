@@ -23,3 +23,4 @@ notifications:
 cloudProvider:
   hetzner:
     token: ""
+secret: "abcdefghijklmnopqrstuvwxyz12345"
